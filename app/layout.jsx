@@ -1,14 +1,19 @@
-// app/layout.js
-import { Inter } from "next/font/google";
+import { cookies } from "next/headers";
 import "./globals.css";
-import { AuthProvider } from "@/providers/authProvider";
+import "./theme.css";
 import { cn } from "@/lib/utils";
 import { Providers } from "@/providers/provider";
+import { Inter as FontSans } from "next/font/google";
 
-const inter = Inter({
+const fontSans = FontSans({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-sans",
 });
+
+const META_THEME_COLORS = {
+  light: "#ffffff",
+  dark: "#09090b",
+};
 
 export const metadata = {
   title: "টেইলারিং ম্যানেজমেন্ট সিস্টেম",
@@ -19,25 +24,38 @@ export const metadata = {
   robots: "index, follow",
 };
 
-export default function RootLayout({ children }) {
+export const viewport = {
+  themeColor: META_THEME_COLORS.light,
+};
+
+export default async function RootLayout({ children }) {
+  const cookieStore = await cookies();
+  const activeThemeValue = cookieStore.get("active_theme")?.value;
+  const isScaled = activeThemeValue?.endsWith("-scaled");
   return (
-    <html lang="bn" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                if (localStorage.theme === 'dark' || ((!('theme' in localStorage) || localStorage.theme === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                  document.querySelector('meta[name="theme-color"]').setAttribute('content', '${META_THEME_COLORS.dark}')
+                }
+              } catch (_) {}
+            `,
+          }}
+        />
       </head>
       <body
         className={cn(
-          "min-h-screen bg-background font-sans antialiased",
-          inter.variable
+          "bg-background overflow-hidden overscroll-none font-sans antialiased",
+          activeThemeValue ? `theme-${activeThemeValue}` : "",
+          isScaled ? "theme-scaled" : "",
+          fontSans.variable
         )}
       >
-        <Providers>
-          <div className="relative flex min-h-screen flex-col">
-            <main className="flex-1">{children}</main>
-          </div>
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

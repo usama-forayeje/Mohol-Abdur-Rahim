@@ -1,11 +1,10 @@
-// app/page.js - Full Fixed Version
 "use client";
 
 import { useAuthStore } from "@/store/auth-store";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShoppingBag, User, Package, BarChart3 } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 // Helper function to get role in Bengali
 const getRoleBengali = (role) => {

@@ -17,6 +17,7 @@ export const useShop = () => {
 export function ShopProvider({ children }) {
   const { isAuthenticated, userProfile, hasInitialized, isAdmin } =
     useAuthStore();
+  const isAuthInitialized = useAuthStore((state) => state.initialized);
 
   const [currentShop, setCurrentShop] = useState(null);
   const [availableShops, setAvailableShops] = useState([]);
@@ -26,7 +27,7 @@ export function ShopProvider({ children }) {
 
   useEffect(() => {
     if (
-      hasInitialized() &&
+      isAuthInitialized &&
       isAuthenticated &&
       userProfile &&
       !shopInitialized
@@ -35,7 +36,7 @@ export function ShopProvider({ children }) {
     } else if (!isAuthenticated) {
       resetShops();
     }
-  }, [hasInitialized(), isAuthenticated, userProfile, shopInitialized]);
+  }, [isAuthInitialized, isAuthenticated, userProfile, shopInitialized]);
 
   const resetShops = () => {
     setCurrentShop(null);
@@ -56,7 +57,6 @@ export function ShopProvider({ children }) {
         try {
           const shops = await appwriteService.getAllShops();
           setAvailableShops(shops);
-          console.log("Fetched All Shops:", shops);
 
           if (shops.length > 0) {
             const savedShopId = localStorage.getItem("selectedShopId");
