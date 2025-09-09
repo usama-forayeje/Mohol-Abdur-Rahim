@@ -1,6 +1,13 @@
-
 "use client";
 
+import { AlertTriangle, RefreshCw, X, Package, Plus } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { appwriteService } from "@/appwrite/appwrite"; // If this file exists
+
+// LoadingSpinner Component
 export function LoadingSpinner({ size = "md", className = "" }) {
   const sizeClasses = {
     sm: "w-4 h-4",
@@ -15,13 +22,7 @@ export function LoadingSpinner({ size = "md", className = "" }) {
   );
 }
 
-// components/ui/ErrorMessage.jsx
-("use client");
-
-import { AlertTriangle, RefreshCw, X } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-
+// ErrorMessage Component
 export function ErrorMessage({
   error,
   onRetry,
@@ -103,13 +104,7 @@ export function ErrorMessage({
   );
 }
 
-// components/ui/EmptyState.jsx
-("use client");
-
-import { Package, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-
+// EmptyState Component
 export function EmptyState({
   icon: Icon = Package,
   title = "কোন তথ্য নেই",
@@ -136,11 +131,7 @@ export function EmptyState({
   );
 }
 
-// components/ui/LoadingState.jsx
-("use client");
-
-import { LoadingSpinner } from "./LoadingSpinner";
-
+// LoadingState Component
 export function LoadingState({
   message = "লোড হচ্ছে...",
   className = "",
@@ -156,15 +147,7 @@ export function LoadingState({
   );
 }
 
-// components/PermissionChecker.jsx - Debug component for permissions
-("use client");
-
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { appwriteService } from "@/appwrite/appwrite";
-import { LoadingSpinner } from "./ui/LoadingSpinner";
-
+// PermissionChecker Component
 export function PermissionChecker() {
   const [isChecking, setIsChecking] = useState(false);
   const [results, setResults] = useState(null);
