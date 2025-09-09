@@ -1,4 +1,4 @@
-// components/ui/LoadingSpinner.jsx
+
 "use client";
 
 export function LoadingSpinner({ size = "md", className = "" }) {

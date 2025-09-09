@@ -1,4 +1,4 @@
-// app/dashboard/page.jsx - Redesigned Dashboard UI
+
 "use client";
 
 import { useAuthStore } from "@/store/auth-store";
