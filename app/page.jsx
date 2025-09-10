@@ -75,7 +75,7 @@ const Logo = () => {
           />
         </motion.div>
         <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400">
-          Mohol Abdul Raheem
+          Mohol Abdur Rahim
         </span>
       </Link>
       <span className="text-sm text-gray-500 dark:text-gray-400 pl-14 rtl:pr-14 -mt-1">
