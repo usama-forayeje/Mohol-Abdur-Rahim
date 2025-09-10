@@ -78,9 +78,6 @@ const Logo = () => {
           Mohol Abdur Rahim
         </span>
       </Link>
-      <span className="text-sm text-gray-500 dark:text-gray-400 pl-14 rtl:pr-14 -mt-1">
-        Premium Tailoring
-      </span>
     </motion.div>
   );
 };
