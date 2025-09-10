@@ -16,10 +16,10 @@ const META_THEME_COLORS = {
 };
 
 export const metadata = {
-  title: "টেইলারিং ম্যানেজমেন্ট সিস্টেম",
-  description: "আধুনিক টেইলারিং শপ ব্যবস্থাপনা সিস্টেম",
+  title: "Mohol Abdur Rahim",
+  description: "A Smart Tailoring and Fabric Shop In Oman",
   keywords: ["tailoring", "management", "bangladesh", "shop"],
-  authors: [{ name: "Your Company" }],
+  authors: [{ name: "Usama Forayaje" }],
   viewport: "width=device-width, initial-scale=1",
   robots: "index, follow",
 };
