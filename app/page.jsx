@@ -202,13 +202,13 @@ const MobileSidebar = ({
                 <div className="space-y-4">
                   <div className="text-right bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 rounded-xl">
                     <p className="text-lg font-bold text-gray-900 dark:text-white">
-                      {userProfile?.name || "User"}
+                      {userProfile ? userProfile.name : "User"}
                     </p>
                     <Badge
                       variant="secondary"
                       className="text-sm mt-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white"
                     >
-                      {getRoleArabic(userProfile?.role)}
+                      {getRoleArabic(userProfile ? userProfile.role : "user")}
                     </Badge>
                   </div>
                   <motion.div
@@ -498,7 +498,7 @@ const features = [
 
 export default function TailoringLandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { isAuthenticated, userProfile, canAccessDashboard, logout } =
+  const { isAuthenticated, userProfile, user, canAccessDashboard, logout } =
     useAuthStore();
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
@@ -551,7 +551,7 @@ export default function TailoringLandingPage() {
               {isAuthenticated ? (
                 <div className="hidden lg:flex items-center space-x-3 rtl:space-x-reverse">
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {userProfile?.name || "User"}
+                    {userProfile ? userProfile.name : "User"}
                   </p>
                   <motion.div
                     whileHover={{ scale: 1.05 }}

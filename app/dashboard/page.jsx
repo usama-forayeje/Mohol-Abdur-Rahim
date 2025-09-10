@@ -2,7 +2,6 @@
 
 import React from "react";
 import { useAuthStore } from "@/store/auth-store";
-import { useShop } from "@/contexts/ShopContext";
 import { ProtectedRoute } from "@/components/ProtectedRotue";
 import {
   Card,
@@ -53,6 +52,8 @@ import {
   Legend,
 } from "recharts";
 import { useTheme } from "next-themes";
+import { useShopData } from "@/hooks/useShopData";
+import { useShop } from "@/contexts/ShopContext";
 
 // Mock data for different shops
 const shopData = {
@@ -277,41 +278,43 @@ function DashboardContent() {
     hasInitializedShop,
   } = useShop();
   const { theme, resolvedTheme } = useTheme();
+  console.log(availableShops);
+  console.log(currentShop);
 
   // Determine if we're in dark mode
-  const isDarkMode = resolvedTheme === 'dark' || theme === 'dark';
+  const isDarkMode = resolvedTheme === "dark" || theme === "dark";
 
   // Theme-based colors
   const getThemeColors = () => {
     if (isDarkMode) {
       return {
-        primary: '#3b82f6', // blue-500
-        primaryGradient: ['#3b82f6', '#1d4ed8'], // blue-500 to blue-700
-        secondary: '#10b981', // emerald-500  
-        secondaryGradient: ['#10b981', '#047857'], // emerald-500 to emerald-700
-        tertiary: '#f59e0b', // amber-500
-        quaternary: '#8b5cf6', // violet-500
-        quinary: '#ef4444', // red-500
-        gridColor: '#374151', // gray-700
-        textColor: '#f3f4f6', // gray-100
-        mutedText: '#9ca3af', // gray-400
-        cardBg: '#1f2937', // gray-800
-        borderColor: '#4b5563', // gray-600
+        primary: "#3b82f6", // blue-500
+        primaryGradient: ["#3b82f6", "#1d4ed8"], // blue-500 to blue-700
+        secondary: "#10b981", // emerald-500
+        secondaryGradient: ["#10b981", "#047857"], // emerald-500 to emerald-700
+        tertiary: "#f59e0b", // amber-500
+        quaternary: "#8b5cf6", // violet-500
+        quinary: "#ef4444", // red-500
+        gridColor: "#374151", // gray-700
+        textColor: "#f3f4f6", // gray-100
+        mutedText: "#9ca3af", // gray-400
+        cardBg: "#1f2937", // gray-800
+        borderColor: "#4b5563", // gray-600
       };
     } else {
       return {
-        primary: '#2563eb', // blue-600
-        primaryGradient: ['#3b82f6', '#1e40af'], // blue-500 to blue-800
-        secondary: '#059669', // emerald-600
-        secondaryGradient: ['#10b981', '#065f46'], // emerald-500 to emerald-800
-        tertiary: '#d97706', // amber-600
-        quaternary: '#7c3aed', // violet-600
-        quinary: '#dc2626', // red-600
-        gridColor: '#e5e7eb', // gray-200
-        textColor: '#111827', // gray-900
-        mutedText: '#6b7280', // gray-500
-        cardBg: '#ffffff', // white
-        borderColor: '#d1d5db', // gray-300
+        primary: "#2563eb", // blue-600
+        primaryGradient: ["#3b82f6", "#1e40af"], // blue-500 to blue-800
+        secondary: "#059669", // emerald-600
+        secondaryGradient: ["#10b981", "#065f46"], // emerald-500 to emerald-800
+        tertiary: "#d97706", // amber-600
+        quaternary: "#7c3aed", // violet-600
+        quinary: "#dc2626", // red-600
+        gridColor: "#e5e7eb", // gray-200
+        textColor: "#111827", // gray-900
+        mutedText: "#6b7280", // gray-500
+        cardBg: "#ffffff", // white
+        borderColor: "#d1d5db", // gray-300
       };
     }
   };
@@ -321,7 +324,7 @@ function DashboardContent() {
   // Dynamic category colors
   const categoryColors = [
     colors.primary,
-    colors.secondary, 
+    colors.secondary,
     colors.tertiary,
     colors.quaternary,
     colors.quinary,
@@ -331,10 +334,8 @@ function DashboardContent() {
   const getCurrentShopData = () => {
     if (!currentShop) return shopData["shop-1"]; // fallback
 
-    // Map shop ID to data (you can modify this based on your shop IDs)
     const shopKey =
       Object.keys(shopData).find((key, index) => {
-        // This is a simple mapping - you might want to use actual shop IDs
         return (
           availableShops.findIndex((shop) => shop.$id === currentShop.$id) ===
           index
@@ -347,10 +348,12 @@ function DashboardContent() {
   const currentShopData = getCurrentShopData();
 
   // Add colors to category data
-  const categoryDataWithColors = currentShopData.categoryData.map((item, index) => ({
-    ...item,
-    color: categoryColors[index % categoryColors.length]
-  }));
+  const categoryDataWithColors = currentShopData.categoryData.map(
+    (item, index) => ({
+      ...item,
+      color: categoryColors[index % categoryColors.length],
+    })
+  );
 
   // Loading state
   if (!hasInitializedShop && isLoading) {
@@ -408,7 +411,8 @@ function DashboardContent() {
                 ব্যবসায়িক ড্যাশবোর্ড
               </h2>
               <p className="text-sm text-muted-foreground">
-                {currentShop.name} - রিয়েল টাইম ডেটা
+                {currentShop ? currentShop.name : "দোকান নাম নেই"} - রিয়েল টাইম
+                ডেটা
               </p>
             </div>
           </div>
@@ -547,7 +551,11 @@ function DashboardContent() {
                         মাসিক বিক্রয় ও অর্ডার ট্রেন্ড
                       </CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center space-x-2"
+                    >
                       <Filter className="w-4 h-4" />
                       <span>ফিল্টার</span>
                     </Button>
@@ -560,7 +568,13 @@ function DashboardContent() {
                       margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                     >
                       <defs>
-                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient
+                          id="colorRevenue"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
                           <stop
                             offset="5%"
                             stopColor={colors.primaryGradient[0]}
@@ -572,7 +586,13 @@ function DashboardContent() {
                             stopOpacity={0.1}
                           />
                         </linearGradient>
-                        <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient
+                          id="colorOrders"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
                           <stop
                             offset="5%"
                             stopColor={colors.secondaryGradient[0]}
@@ -615,8 +635,8 @@ function DashboardContent() {
                           border: `1px solid ${colors.borderColor}`,
                           borderRadius: "8px",
                           color: colors.textColor,
-                          boxShadow: isDarkMode 
-                            ? "0px 4px 20px rgba(0,0,0,0.5)" 
+                          boxShadow: isDarkMode
+                            ? "0px 4px 20px rgba(0,0,0,0.5)"
                             : "0px 4px 20px rgba(0,0,0,0.15)",
                           padding: "12px",
                         }}
@@ -630,7 +650,7 @@ function DashboardContent() {
                           padding: "2px 0",
                         }}
                       />
-                      <Legend 
+                      <Legend
                         wrapperStyle={{ paddingTop: 20 }}
                         iconType="line"
                       />
@@ -697,8 +717,8 @@ function DashboardContent() {
                         }
                         labelStyle={{
                           fill: colors.textColor,
-                          fontSize: '12px',
-                          fontWeight: 'bold',
+                          fontSize: "12px",
+                          fontWeight: "bold",
                         }}
                       >
                         {categoryDataWithColors.map((entry, index) => (
@@ -716,15 +736,12 @@ function DashboardContent() {
                           border: `1px solid ${colors.borderColor}`,
                           borderRadius: "8px",
                           color: colors.textColor,
-                          boxShadow: isDarkMode 
-                            ? "0px 4px 20px rgba(0,0,0,0.5)" 
+                          boxShadow: isDarkMode
+                            ? "0px 4px 20px rgba(0,0,0,0.5)"
                             : "0px 4px 20px rgba(0,0,0,0.15)",
                           padding: "12px",
                         }}
-                        formatter={(value, name) => [
-                          `${value}%`,
-                          name,
-                        ]}
+                        formatter={(value, name) => [`${value}%`, name]}
                         labelStyle={{
                           color: colors.primary,
                           fontWeight: "bold",
@@ -734,7 +751,10 @@ function DashboardContent() {
                         align="center"
                         verticalAlign="bottom"
                         layout="horizontal"
-                        wrapperStyle={{ paddingTop: 20, color: colors.textColor }}
+                        wrapperStyle={{
+                          paddingTop: 20,
+                          color: colors.textColor,
+                        }}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -799,9 +819,7 @@ function DashboardContent() {
                         </div>
                         <div className="ml-4 flex-1">
                           <div className="flex items-center justify-between">
-                            <p className="text-base font-medium">
-                              {sale.name}
-                            </p>
+                            <p className="text-base font-medium">{sale.name}</p>
                             <div className="text-xl font-bold text-green-600 dark:text-green-400">
                               {sale.amount}
                             </div>
@@ -923,8 +941,8 @@ function DashboardContent() {
                           border: `1px solid ${colors.borderColor}`,
                           borderRadius: "8px",
                           color: colors.textColor,
-                          boxShadow: isDarkMode 
-                            ? "0px 4px 20px rgba(0,0,0,0.5)" 
+                          boxShadow: isDarkMode
+                            ? "0px 4px 20px rgba(0,0,0,0.5)"
                             : "0px 4px 20px rgba(0,0,0,0.15)",
                           padding: "12px",
                         }}
@@ -992,8 +1010,8 @@ function DashboardContent() {
                           border: `1px solid ${colors.borderColor}`,
                           borderRadius: "8px",
                           color: colors.textColor,
-                          boxShadow: isDarkMode 
-                            ? "0px 4px 20px rgba(0,0,0,0.5)" 
+                          boxShadow: isDarkMode
+                            ? "0px 4px 20px rgba(0,0,0,0.5)"
                             : "0px 4px 20px rgba(0,0,0,0.15)",
                           padding: "12px",
                         }}
@@ -1033,9 +1051,7 @@ function DashboardContent() {
             <Card>
               <CardContent className="p-12 text-center">
                 <TrendingUp className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-medium mb-2">
-                  বিস্তারিত বিশ্লেষণ
-                </h3>
+                <h3 className="text-xl font-medium mb-2">বিস্তারিত বিশ্লেষণ</h3>
                 <p className="text-muted-foreground mb-6">
                   এই বিভাগটি শীঘ্রই আসছে...
                 </p>
@@ -1047,9 +1063,7 @@ function DashboardContent() {
             <Card>
               <CardContent className="p-12 text-center">
                 <Download className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-medium mb-2">
-                  রিপোর্ট জেনারেটর
-                </h3>
+                <h3 className="text-xl font-medium mb-2">রিপোর্ট জেনারেটর</h3>
                 <p className="text-muted-foreground mb-6">
                   কাস্টম রিপোর্ট তৈরি করুন...
                 </p>
@@ -1061,9 +1075,7 @@ function DashboardContent() {
             <Card>
               <CardContent className="p-12 text-center">
                 <AlertTriangle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-medium mb-2">
-                  নোটিফিকেশন সেন্টার
-                </h3>
+                <h3 className="text-xl font-medium mb-2">নোটিফিকেশন সেন্টার</h3>
                 <p className="text-muted-foreground mb-6">
                   সকল আপডেট এখানে দেখুন...
                 </p>
