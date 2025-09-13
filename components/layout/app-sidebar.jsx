@@ -285,7 +285,7 @@ export default function AppSidebar() {
       {
         title: "দোকান ব্যবস্থাপনা",
         icon: Building2,
-        url: "/dashboard/shops",
+        url: "/dashboard/shop",
         permissions: [PERMISSIONS.MANAGE_SHOPS],
       },
       {

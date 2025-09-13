@@ -4,6 +4,7 @@ import "./theme.css";
 import { cn } from "@/lib/utils";
 import { Providers } from "@/providers/provider";
 import { Inter as FontSans } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -56,6 +57,7 @@ export default async function RootLayout({ children }) {
         )}
       >
         <Providers>{children}</Providers>
+        <Toaster />
       </body>
     </html>
   );
