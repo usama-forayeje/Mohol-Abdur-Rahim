@@ -77,7 +77,7 @@ export function useUpdateShop() {
 
 export function useDeleteShop() {
   const queryClient = useQueryClient();
-   const setShops = useShopStore((state) => state.setShops);
+  const setShops = useShopStore((state) => state.setShops);
   return useMutation({
     mutationFn: (id) => shopService.deleteShop(id),
     onSuccess: (_, id) => {

@@ -5,6 +5,7 @@ import { AuthProvider } from "./authProvider";
 import { ShopProvider } from "@/contexts/ShopContext";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { ActiveThemeProvider } from "@/components/active-theme";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 // Simple QueryClient configuration
 const queryClient = new QueryClient({
@@ -31,6 +32,7 @@ export function Providers({ activeThemeValue, children }) {
           </AuthProvider>
         </ActiveThemeProvider>
       </NextThemesProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );
 }

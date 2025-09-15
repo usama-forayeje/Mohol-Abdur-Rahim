@@ -5,6 +5,7 @@ import {
   useReactTable,
   getCoreRowModel,
   flexRender,
+  getFilteredRowModel,
 } from "@tanstack/react-table";
 import {
   Table,
@@ -59,6 +60,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import PageContainer from "@/components/layout/page-container";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -72,6 +74,11 @@ import {
   BarChart3,
   DollarSign,
   Tag,
+  NotebookIcon,
+  Search,
+  Filter,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import {
   useFabrics,
@@ -81,6 +88,7 @@ import {
 } from "@/services/fabric-service";
 import { useShops } from "@/services/shop-service";
 import { toast } from "sonner";
+import { useInvoices } from "@/services/purchaseInvoice-service";
 
 const fabricSchema = z.object({
   name: z.string().min(2, "নাম কমপক্ষে ২ অক্ষর হতে হবে"),
@@ -91,7 +99,10 @@ const fabricSchema = z.object({
     .min(0, "ক্রয়মূল্য ০ বা তার বেশি হতে হবে"),
   price_per_meter: z.number().min(0, "বিক্রয়মূল্য ০ বা তার বেশি হতে হবে"),
   shopId: z.string().optional(),
+  purchaseInvoices: z.array(z.string()).optional(),
 });
+
+const LOW_STOCK_THRESHOLD = 10; // মিটার - এই পরিমাণের কম হলে warning দেখাবে
 
 export default function FabricPage() {
   const { data: fabrics, isLoading, refetch } = useFabrics();
@@ -101,38 +112,80 @@ export default function FabricPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedFabric, setSelectedFabric] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedShopFilter, setSelectedShopFilter] = useState("all");
+  const [stockFilter, setStockFilter] = useState("all");
   const { data: shops, isLoading: shopsLoading } = useShops();
+  const { data: invoices, isLoading: invoiceLoading } = useInvoices();
+
+  // Form setup with proper default values
+  const defaultFormValues = {
+    name: "",
+    code: "",
+    stock_quantity: "",
+    purchase_cost_per_meter: "",
+    price_per_meter: "",
+    shopId: "",
+    purchaseInvoices: [],
+  };
 
   const form = useForm({
     resolver: zodResolver(fabricSchema),
-    defaultValues: {
-      name: "",
-      code: "",
-      stock_quantity: 0,
-      purchase_cost_per_meter: 0,
-      price_per_meter: 0,
-      shopId: "",
-    },
+    defaultValues: defaultFormValues,
   });
 
-  useEffect(() => {
-    if (selectedFabric) {
-      form.reset({
-        name: selectedFabric.name,
-        code: selectedFabric.code,
-        stock_quantity: selectedFabric.stock_quantity,
-        purchase_cost_per_meter: selectedFabric.purchase_cost_per_meter,
-        price_per_meter: selectedFabric.price_per_meter,
-        shopId: selectedFabric.shopId ? selectedFabric.shopId.$id : "none",
-      });
-      setIsEditDialogOpen(true);
-    }
-  }, [selectedFabric, form]);
+  // Reset form when dialogs close
+  const resetForm = () => {
+    form.reset(defaultFormValues);
+    setSelectedFabric(null);
+  };
 
+  // Handle edit fabric
+  useEffect(() => {
+    if (selectedFabric && isEditDialogOpen) {
+      let purchaseInvoicesToSet = [];
+
+      try {
+        const selectedInvoices = selectedFabric.purchaseInvoices;
+        if (selectedInvoices) {
+          if (Array.isArray(selectedInvoices) && selectedInvoices.length > 0) {
+            const firstInvoice = selectedInvoices[0];
+            const invoiceId =
+              firstInvoice?.$id ||
+              (typeof firstInvoice === "string" ? firstInvoice : null);
+            if (invoiceId) {
+              purchaseInvoicesToSet = [invoiceId];
+            }
+          } else if (selectedInvoices.$id) {
+            purchaseInvoicesToSet = [selectedInvoices.$id];
+          } else if (typeof selectedInvoices === "string") {
+            purchaseInvoicesToSet = [selectedInvoices];
+          }
+        }
+      } catch (error) {
+        console.error("Error parsing purchaseInvoices:", error);
+        purchaseInvoicesToSet = [];
+      }
+
+      form.reset({
+        name: selectedFabric.name || "",
+        code: selectedFabric.code || "",
+        stock_quantity: selectedFabric.stock_quantity ?? 0,
+        purchase_cost_per_meter: selectedFabric.purchase_cost_per_meter ?? 0,
+        price_per_meter: selectedFabric.price_per_meter ?? 0,
+        shopId: selectedFabric.shopId?.$id || "",
+        purchaseInvoices: purchaseInvoicesToSet,
+      });
+    }
+  }, [selectedFabric, isEditDialogOpen, form]);
+
+  // Handle form submission
   const onSubmit = (values) => {
     const dataToSend = {
       ...values,
-      shopId: values.shopId === "none" ? "" : values.shopId,
+      shopId: values.shopId === "" ? null : values.shopId,
+      purchaseInvoices:
+        values.purchaseInvoices.length > 0 ? values.purchaseInvoices : null,
     };
 
     if (selectedFabric) {
@@ -141,23 +194,22 @@ export default function FabricPage() {
         {
           onSuccess: () => {
             toast.success("ফ্যাব্রিক সফলভাবে আপডেট হয়েছে");
-            form.reset();
             setIsEditDialogOpen(false);
-            setSelectedFabric(null);
+            resetForm();
             refetch();
           },
-          onError: () => toast.error("ফ্যাব্রিক আপডেট করতে সমস্যা হয়েছে"),
+          onError: (error) => toast.error("ফ্যাব্রিক আপডেট করতে সমস্যা হয়েছে"),
         }
       );
     } else {
       createFabric.mutate(dataToSend, {
         onSuccess: () => {
           toast.success("ফ্যাব্রিক সফলভাবে যোগ করা হয়েছে");
-          form.reset();
           setIsDialogOpen(false);
+          resetForm();
           refetch();
         },
-        onError: () => toast.error("ফ্যাব্রিক যোগ করতে সমস্যা হয়েছে"),
+        onError: (error) => toast.error("ফ্যাব্রিক যোগ করতে সমস্যা হয়েছে"),
       });
     }
   };
@@ -168,9 +220,69 @@ export default function FabricPage() {
         toast.success("ফ্যাব্রিক সফলভাবে ডিলিট হয়েছে");
         refetch();
       },
-      onError: () => toast.error("ফ্যাব্রিক ডিলিট করতে সমস্যা হয়েছে"),
+      onError: (error) => toast.error("ফ্যাব্রিক ডিলিট করতে সমস্যা হয়েছে"),
     });
   };
+
+  // Handle edit button click
+  const handleEditClick = (fabric) => {
+    setSelectedFabric(fabric);
+    setIsEditDialogOpen(true);
+  };
+
+  // Handle new fabric button click
+  const handleNewFabricClick = () => {
+    resetForm();
+    setIsDialogOpen(true);
+  };
+
+  // Filter fabrics based on search and filters
+  const filteredFabrics = useMemo(() => {
+    if (!fabrics) return [];
+
+    return fabrics.filter((fabric) => {
+      // Search filter
+      const searchMatch =
+        fabric.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        fabric.code.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Shop filter
+      const shopMatch =
+        selectedShopFilter === "all" ||
+        fabric.shopId?.$id === selectedShopFilter;
+
+      // Stock filter
+      const stockMatch =
+        stockFilter === "all" ||
+        (stockFilter === "low" &&
+          fabric.stock_quantity <= LOW_STOCK_THRESHOLD) ||
+        (stockFilter === "normal" &&
+          fabric.stock_quantity > LOW_STOCK_THRESHOLD);
+
+      return searchMatch && shopMatch && stockMatch;
+    });
+  }, [fabrics, searchTerm, selectedShopFilter, stockFilter]);
+
+  // Get low stock count
+  const lowStockCount = useMemo(() => {
+    return (
+      fabrics?.filter((fabric) => fabric.stock_quantity <= LOW_STOCK_THRESHOLD)
+        .length || 0
+    );
+  }, [fabrics]);
+
+  // Check if fabric has low stock
+  const isLowStock = (quantity) => quantity <= LOW_STOCK_THRESHOLD;
+
+  // Clear filters
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSelectedShopFilter("all");
+    setStockFilter("all");
+  };
+
+  const hasActiveFilters =
+    searchTerm || selectedShopFilter !== "all" || stockFilter !== "all";
 
   const columns = useMemo(
     () => [
@@ -179,7 +291,15 @@ export default function FabricPage() {
         header: "ফ্যাব্রিক",
         cell: ({ row }) => (
           <div>
-            <div className="font-medium">{row.original.name}</div>
+            <div className="font-medium flex items-center gap-2">
+              {row.original.name}
+              {isLowStock(row.original.stock_quantity) && (
+                <Badge variant="destructive" className="text-xs">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  কম স্টক
+                </Badge>
+              )}
+            </div>
             <div className="text-xs text-muted-foreground">
               {row.original.code}
             </div>
@@ -189,23 +309,45 @@ export default function FabricPage() {
       {
         accessorKey: "stock_quantity",
         header: "স্টক",
-        cell: ({ row }) => `${row.original.stock_quantity} মিটার`,
+        cell: ({ row }) => (
+          <div
+            className={`font-medium ${
+              isLowStock(row.original.stock_quantity) ? "text-red-600" : ""
+            }`}
+          >
+            {row.original.stock_quantity} মিটার
+          </div>
+        ),
       },
       {
         accessorKey: "purchase_cost_per_meter",
         header: "ক্রয়মূল্য/মিটার",
-        cell: ({ row }) => `৳${row.original.purchase_cost_per_meter}`,
+        cell: ({ row }) => `OMR ${row.original.purchase_cost_per_meter}`,
       },
       {
         accessorKey: "price_per_meter",
         header: "বিক্রয়মূল্য/মিটার",
-        cell: ({ row }) => `৳${row.original.price_per_meter}`,
+        cell: ({ row }) => `OMR ${row.original.price_per_meter}`,
       },
       {
         accessorKey: "shopId",
         header: "দোকান",
         cell: ({ row }) =>
           row.original.shopId ? row.original.shopId.name : "N/A",
+      },
+      {
+        accessorKey: "invoiceId",
+        header: "সাপ্লায়ার নাম",
+        cell: ({ row }) => {
+          if (
+            row.original.purchaseInvoices &&
+            Array.isArray(row.original.purchaseInvoices) &&
+            row.original.purchaseInvoices.length > 0
+          ) {
+            return row.original.purchaseInvoices[0].supplier_name || "N/A";
+          }
+          return "N/A";
+        },
       },
       {
         id: "actions",
@@ -219,7 +361,7 @@ export default function FabricPage() {
                     variant="outline"
                     size="icon"
                     className="h-8 w-8"
-                    onClick={() => setSelectedFabric(row.original)}
+                    onClick={() => handleEditClick(row.original)}
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -249,8 +391,8 @@ export default function FabricPage() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>আপনি কি নিশ্চিত?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      "{row.original.name}" ফ্যাব্রিকটি মুছে ফেলতে চলেছেন। এই
-                      কাজটি বাতিল করা সম্ভব হবে না।
+                      আপনি এই "{row.original.name}" ফ্যাব্রিকটি মুছে ফেলতে
+                      চলেছেন।
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -273,9 +415,10 @@ export default function FabricPage() {
   );
 
   const table = useReactTable({
-    data: fabrics || [],
+    data: filteredFabrics || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
   });
 
   return (
@@ -285,16 +428,18 @@ export default function FabricPage() {
           <div className="flex items-center gap-2">
             <Package className="h-6 w-6 text-primary" />
             <h1 className="text-2xl font-bold">ফ্যাব্রিক স্টক</h1>
+            {lowStockCount > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                {lowStockCount} কম স্টক
+              </Badge>
+            )}
           </div>
-
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button
                 className="flex items-center gap-2 cursor-pointer w-full sm:w-auto"
-                onClick={() => {
-                  form.reset();
-                  setSelectedFabric(null);
-                }}
+                onClick={handleNewFabricClick}
               >
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">
@@ -358,7 +503,11 @@ export default function FabricPage() {
                             placeholder="স্টক পরিমাণ লিখুন"
                             {...field}
                             onChange={(e) =>
-                              field.onChange(Number(e.target.value))
+                              field.onChange(
+                                e.target.value === ""
+                                  ? ""
+                                  : Number(e.target.value)
+                              )
                             }
                           />
                         </FormControl>
@@ -378,7 +527,11 @@ export default function FabricPage() {
                             placeholder="ক্রয়মূল্য লিখুন"
                             {...field}
                             onChange={(e) =>
-                              field.onChange(Number(e.target.value))
+                              field.onChange(
+                                e.target.value === ""
+                                  ? ""
+                                  : Number(e.target.value)
+                              )
                             }
                           />
                         </FormControl>
@@ -398,7 +551,11 @@ export default function FabricPage() {
                             placeholder="বিক্রয়মূল্য লিখুন"
                             {...field}
                             onChange={(e) =>
-                              field.onChange(Number(e.target.value))
+                              field.onChange(
+                                e.target.value === ""
+                                  ? ""
+                                  : Number(e.target.value)
+                              )
                             }
                           />
                         </FormControl>
@@ -406,43 +563,85 @@ export default function FabricPage() {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="shopId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>দোকান নির্বাচন করুন</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value || "none"}
-                          disabled={shopsLoading}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="দোকান নির্বাচন করুন" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">
-                              দোকান নির্বাচন করুন
-                            </SelectItem>
-                            {shops?.map((shop) => (
-                              <SelectItem key={shop.$id} value={shop.$id}>
-                                {shop.name}
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="shopId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>দোকান নির্বাচন করুন</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value || ""}
+                            disabled={shopsLoading}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="দোকান নির্বাচন করুন" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="">
+                                দোকান নির্বাচন করুন
                               </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                              {shops?.map((shop) => (
+                                <SelectItem key={shop.$id} value={shop.$id}>
+                                  {shop.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="purchaseInvoices"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>ইনভয়েস নির্বাচন করুন</FormLabel>
+                          <Select
+                            onValueChange={(value) =>
+                              field.onChange(value === "" ? [] : [value])
+                            }
+                            value={
+                              field.value && field.value.length > 0
+                                ? field.value[0]
+                                : ""
+                            }
+                            disabled={invoiceLoading}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="ইনভয়েস নির্বাচন করুন" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="">কোন ইনভয়েস নেই</SelectItem>
+                              {invoices?.map((invoice) => (
+                                <SelectItem
+                                  key={invoice.$id}
+                                  value={invoice.$id}
+                                >
+                                  {invoice.invoice_number} (
+                                  {invoice.supplier_name})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
                     <DialogClose asChild>
                       <Button
                         type="button"
                         variant="outline"
                         className="w-full sm:w-auto"
+                        onClick={resetForm}
                       >
                         বাতিল
                       </Button>
@@ -456,20 +655,81 @@ export default function FabricPage() {
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* Filters Section */}
+        <div className="bg-card rounded-lg border p-4 mb-6">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="ফ্যাব্রিক নাম বা কোড দিয়ে খুঁজুন..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Select
+                value={selectedShopFilter}
+                onValueChange={setSelectedShopFilter}
+              >
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="দোকান ফিল্টার" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">সব দোকান</SelectItem>
+                  {shops?.map((shop) => (
+                    <SelectItem key={shop.$id} value={shop.$id}>
+                      {shop.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={stockFilter} onValueChange={setStockFilter}>
+                <SelectTrigger className="w-full sm:w-[160px]">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="স্টক ফিল্টার" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">সব স্টক</SelectItem>
+                  <SelectItem value="low">কম স্টক</SelectItem>
+                  <SelectItem value="normal">স্বাভাবিক স্টক</SelectItem>
+                </SelectContent>
+              </Select>
+              {hasActiveFilters && (
+                <Button
+                  variant="outline"
+                  onClick={clearFilters}
+                  className="flex items-center gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  ফিল্টার সাফ করুন
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
         <hr className="my-6 border-t border-gray-200" />
         <div className="mt-8 w-full">
-          <h2 className="text-xl font-semibold mb-4 px-4 sm:px-0">
-            ফ্যাব্রিক তালিকা
-          </h2>
+          <div className="flex justify-between items-center mb-4 px-4 sm:px-0">
+            <h2 className="text-xl font-semibold">ফ্যাব্রিক তালিকা</h2>
+            <div className="text-sm text-muted-foreground">
+              মোট: {filteredFabrics.length} টি ফ্যাব্রিক
+            </div>
+          </div>
+
           {isLoading || shopsLoading ? (
             <div className="space-y-4 p-4 border rounded-lg">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : fabrics && fabrics.length > 0 ? (
+          ) : filteredFabrics && filteredFabrics.length > 0 ? (
             <div className="w-full">
-              {/* Desktop Table View */}
               <div className="hidden md:block border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
@@ -491,7 +751,12 @@ export default function FabricPage() {
                   <TableBody>
                     {table.getRowModel().rows.length > 0 ? (
                       table.getRowModel().rows.map((row) => (
-                        <TableRow key={row.id}>
+                        <TableRow
+                          key={row.id}
+                          className={
+                            isLowStock(row.original.stock_quantity) ? "" : ""
+                          }
+                        >
                           {row.getVisibleCells().map((cell) => (
                             <TableCell key={cell.id}>
                               {flexRender(
@@ -515,17 +780,23 @@ export default function FabricPage() {
                   </TableBody>
                 </Table>
               </div>
-
-              {/* Mobile Card View (for responsive design) */}
               <div className="md:hidden grid grid-cols-1 gap-4 px-4 sm:px-0">
-                {fabrics.map((fabric) => (
+                {filteredFabrics.map((fabric) => (
                   <Card
                     key={fabric.$id}
-                    className="hover:shadow-md transition-shadow"
+                    className={`hover:shadow-md transition-shadow ${
+                      isLowStock(fabric.stock_quantity) ? " " : ""
+                    }`}
                   >
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-lg font-semibold">
-                        {fabric.name}
+                      <CardTitle className="text-lg font-semibold flex items-center justify-between">
+                        <span>{fabric.name}</span>
+                        {isLowStock(fabric.stock_quantity) && (
+                          <Badge variant="destructive" className="text-xs">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            কম স্টক
+                          </Badge>
+                        )}
                       </CardTitle>
                       <p className="text-sm text-muted-foreground">
                         {fabric.code}
@@ -534,26 +805,43 @@ export default function FabricPage() {
                     <CardContent className="space-y-2">
                       <div className="flex items-center gap-2">
                         <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                        <p className="text-sm font-medium">
+                        <p
+                          className={`text-sm font-medium ${
+                            isLowStock(fabric.stock_quantity)
+                              ? "text-red-600"
+                              : ""
+                          }`}
+                        >
                           স্টক: {fabric.stock_quantity} মিটার
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                         <p className="text-sm font-medium">
-                          ক্রয়মূল্য: ৳{fabric.purchase_cost_per_meter}
+                          ক্রয়মূল্য: OMR {fabric.purchase_cost_per_meter}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Tag className="h-4 w-4 text-muted-foreground" />
                         <p className="text-sm font-medium">
-                          বিক্রয়মূল্য: ৳{fabric.price_per_meter}
+                          বিক্রয়মূল্য: OMR {fabric.price_per_meter}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Store className="h-4 w-4 text-muted-foreground" />
                         <p className="text-sm font-medium">
                           দোকান: {fabric.shopId ? fabric.shopId.name : "N/A"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <NotebookIcon className="h-4 w-4 text-muted-foreground" />
+                        <p className="text-sm font-medium">
+                          সাপ্লায়ার নাম:{" "}
+                          {fabric.purchaseInvoices &&
+                          Array.isArray(fabric.purchaseInvoices) &&
+                          fabric.purchaseInvoices.length > 0
+                            ? fabric.purchaseInvoices[0].supplier_name || "N/A"
+                            : "N/A"}
                         </p>
                       </div>
                       <div className="pt-2 flex gap-2 justify-end">
@@ -564,7 +852,7 @@ export default function FabricPage() {
                                 variant="outline"
                                 size="icon"
                                 className="h-8 w-8"
-                                onClick={() => setSelectedFabric(fabric)}
+                                onClick={() => handleEditClick(fabric)}
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
@@ -620,27 +908,48 @@ export default function FabricPage() {
             <div className="flex flex-col items-center justify-center p-12 text-center border rounded-lg bg-muted/20 w-full">
               <Package className="h-16 w-16 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">
-                কোন ফ্যাব্রিক যোগ করা হয়নি
+                {hasActiveFilters
+                  ? "কোন ফ্যাব্রিক পাওয়া যায়নি"
+                  : "কোন ফ্যাব্রিক যোগ করা হয়নি"}
               </h3>
               <p className="text-muted-foreground mb-4">
-                নতুন ফ্যাব্রিক যোগ করে আপনার তালিকা শুরু করুন
+                {hasActiveFilters
+                  ? "আপনার ফিল্টার অনুযায়ী কোন ফ্যাব্রিক খুঁজে পাওয়া যায়নি"
+                  : "নতুন ফ্যাব্রিক যোগ করে আপনার তালিকা শুরু করুন"}
               </p>
-              <Button
-                onClick={() => {
-                  form.reset();
-                  setSelectedFabric(null);
-                  setIsDialogOpen(true);
-                }}
-                className="flex items-center gap-2 cursor-pointer"
-              >
-                <Plus className="h-4 w-4" />
-                প্রথম ফ্যাব্রিক যোগ করুন
-              </Button>
+              {hasActiveFilters ? (
+                <Button
+                  onClick={clearFilters}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  ফিল্টার সাফ করুন
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleNewFabricClick}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  প্রথম ফ্যাব্রিক যোগ করুন
+                </Button>
+              )}
             </div>
           )}
         </div>
       </div>
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+
+      {/* Edit Dialog */}
+      <Dialog
+        open={isEditDialogOpen}
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) {
+            resetForm();
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl">ফ্যাব্রিক এডিট করুন</DialogTitle>
@@ -690,7 +999,10 @@ export default function FabricPage() {
                         type="number"
                         placeholder="স্টক পরিমাণ লিখুন"
                         {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          field.onChange(value === "" ? "" : Number(value));
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -708,7 +1020,10 @@ export default function FabricPage() {
                         type="number"
                         placeholder="ক্রয়মূল্য লিখুন"
                         {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          field.onChange(value === "" ? "" : Number(value));
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -726,50 +1041,91 @@ export default function FabricPage() {
                         type="number"
                         placeholder="বিক্রয়মূল্য লিখুন"
                         {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          field.onChange(value === "" ? "" : Number(value));
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="shopId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>দোকান নির্বাচন করুন</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value || "none"}
-                      disabled={shopsLoading}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="দোকান নির্বাচন করুন" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">
-                          দোকান নির্বাচন করুন
-                        </SelectItem>
-                        {shops?.map((shop) => (
-                          <SelectItem key={shop.$id} value={shop.$id}>
-                            {shop.name}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="shopId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>দোকান নির্বাচন করুন</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || "none"} // value="" এর বদলে value="none" ব্যবহার করা হয়েছে
+                        disabled={shopsLoading}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="দোকান নির্বাচন করুন" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">
+                            দোকান নির্বাচন করুন
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                          {shops?.map((shop) => (
+                            <SelectItem key={shop.$id} value={shop.$id}>
+                              {shop.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="purchaseInvoices"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>ইনভয়েস নির্বাচন করুন</FormLabel>
+                      <Select
+                        onValueChange={(value) =>
+                          field.onChange(value === "none" ? [] : [value])
+                        }
+                        value={
+                          field.value && field.value.length > 0
+                            ? field.value[0]
+                            : "none"
+                        }
+                        disabled={invoiceLoading}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="ইনভয়েস নির্বাচন করুন" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">কোন ইনভয়েস নেই</SelectItem>
+                          {invoices?.map((invoice) => (
+                            <SelectItem key={invoice.$id} value={invoice.$id}>
+                              {invoice.invoice_number} ({invoice.supplier_name})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
                 <DialogClose asChild>
                   <Button
                     type="button"
                     variant="outline"
                     className="w-full sm:w-auto"
+                    onClick={resetForm}
                   >
                     বাতিল
                   </Button>

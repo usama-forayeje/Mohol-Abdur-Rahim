@@ -1,5 +1,5 @@
 // appwrite/appwrite.js - Fixed user profile fetching
-import { Account, Client, Databases, ID, Query } from "appwrite";
+import { Account, Client, Databases, ID, Storage, Query } from "appwrite";
 
 const client = new Client()
   .setEndpoint(
@@ -9,6 +9,7 @@ const client = new Client()
 
 export const account = new Account(client);
 export const databases = new Databases(client);
+export const storage = new Storage(client);
 
 export class AppwriteService {
   constructor() {
