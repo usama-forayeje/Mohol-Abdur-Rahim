@@ -61,22 +61,54 @@ export const purchaseInvoiceService = {
     }
   },
 
-  // Update invoice
-  async updateInvoice(id, data) {
+  // Update invoice - FIXED to handle file updates and delete previous file
+  async updateInvoice(id, data, fileInput, previousFileId = null) {
     try {
-      return await databases.updateDocument(DATABASE_ID, COLLECTION_ID, id, {
+      let fileId = null;
+      
+      // Check if a new file was provided
+      if (fileInput && fileInput[0]) {
+        // Upload new file
+        const uploadedFile = await storage.createFile(
+          STORAGE_ID,
+          ID.unique(),
+          fileInput[0]
+        );
+        fileId = uploadedFile.$id;
+        
+        // Delete previous file if it exists and a new file is uploaded
+        if (previousFileId) {
+          try {
+            await storage.deleteFile(STORAGE_ID, previousFileId);
+          } catch (err) {
+            if (err.code !== 404) { // Ignore "not found" errors
+              console.error("Error deleting previous file:", err);
+            }
+          }
+        }
+      }
+
+      // Prepare update data
+      const updateData = {
         invoice_number: data.invoice_number,
         invoice_date: data.invoice_date,
         supplier_name: data.supplier_name,
         total_amount: parseFloat(data.total_amount),
-      });
+      };
+
+      // Only include fileId if a new file was uploaded
+      if (fileId) {
+        updateData.fileId = fileId;
+      }
+
+      return await databases.updateDocument(DATABASE_ID, COLLECTION_ID, id, updateData);
     } catch (error) {
       console.error("Error updating invoice:", error);
       throw error;
     }
   },
 
-  // Delete invoice (শুধু database থেকে)
+  // Delete invoice
   async deleteInvoice(id) {
     try {
       return await databases.deleteDocument(DATABASE_ID, COLLECTION_ID, id);
@@ -153,15 +185,15 @@ export function useCreateInvoice() {
   });
 }
 
-// Update invoice + Store এ update
+// Update invoice + Store এ update - FIXED to handle file updates and previous file deletion
 export function useUpdateInvoice() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, ...data }) =>
-      purchaseInvoiceService.updateInvoice(id, data),
+    mutationFn: ({ id, data, file, previousFileId }) =>
+      purchaseInvoiceService.updateInvoice(id, data, file, previousFileId),
 
-    onMutate: async ({ id, ...updateData }) => {
+    onMutate: async ({ id, data, file, previousFileId }) => {
       // Optimistic update - Store এ immediately update করি
       const currentInvoices = useInvoiceStore.getState().invoices;
       const existingInvoice = currentInvoices.find((inv) => inv.$id === id);
@@ -169,10 +201,10 @@ export function useUpdateInvoice() {
       if (existingInvoice) {
         const updatedInvoice = {
           ...existingInvoice,
-          invoice_number: updateData.invoice_number,
-          invoice_date: updateData.invoice_date,
-          supplier_name: updateData.supplier_name,
-          total_amount: parseFloat(updateData.total_amount),
+          invoice_number: data.invoice_number,
+          invoice_date: data.invoice_date,
+          supplier_name: data.supplier_name,
+          total_amount: parseFloat(data.total_amount),
         };
 
         useInvoiceStore.getState().updateInvoice(updatedInvoice);

@@ -135,12 +135,6 @@ export default function AppSidebar() {
             permissions: [PERMISSIONS.MANAGE_FABRICS],
           },
           {
-            title: "কাঁচামাল স্টক",
-            icon: Briefcase,
-            url: "/dashboard/inventory/materials",
-            permissions: [PERMISSIONS.MANAGE_RAW_MATERIALS],
-          },
-          {
             title: "ক্রয়ের রশীদ",
             icon: FileText,
             url: "/dashboard/inventory/purchaseInvoice",
