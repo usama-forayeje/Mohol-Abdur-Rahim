@@ -141,43 +141,43 @@ export default function FabricPage() {
   };
 
   // Handle edit fabric
-  useEffect(() => {
-    if (selectedFabric && isEditDialogOpen) {
-      let purchaseInvoicesToSet = [];
+ useEffect(() => {
+  if (selectedFabric && isEditDialogOpen) {
+    let purchaseInvoicesToSet = [];
 
-      try {
-        const selectedInvoices = selectedFabric.purchaseInvoices;
-        if (selectedInvoices) {
-          if (Array.isArray(selectedInvoices) && selectedInvoices.length > 0) {
-            const firstInvoice = selectedInvoices[0];
-            const invoiceId =
-              firstInvoice?.$id ||
-              (typeof firstInvoice === "string" ? firstInvoice : null);
-            if (invoiceId) {
-              purchaseInvoicesToSet = [invoiceId];
-            }
-          } else if (selectedInvoices.$id) {
-            purchaseInvoicesToSet = [selectedInvoices.$id];
-          } else if (typeof selectedInvoices === "string") {
-            purchaseInvoicesToSet = [selectedInvoices];
+    try {
+      const selectedInvoices = selectedFabric.purchaseInvoices;
+      if (selectedInvoices) {
+        if (Array.isArray(selectedInvoices) && selectedInvoices.length > 0) {
+          const firstInvoice = selectedInvoices[0];
+          const invoiceId =
+            firstInvoice?.$id ||
+            (typeof firstInvoice === "string" ? firstInvoice : null); // Fixed: removed extra quote
+          if (invoiceId) {
+            purchaseInvoicesToSet = [invoiceId];
           }
+        } else if (selectedInvoices.$id) {
+          purchaseInvoicesToSet = [selectedInvoices.$id];
+        } else if (typeof selectedInvoices === "string") {
+          purchaseInvoicesToSet = [selectedInvoices];
         }
-      } catch (error) {
-        console.error("Error parsing purchaseInvoices:", error);
-        purchaseInvoicesToSet = [];
       }
-
-      form.reset({
-        name: selectedFabric.name || "",
-        code: selectedFabric.code || "",
-        stock_quantity: selectedFabric.stock_quantity ?? 0,
-        purchase_cost_per_meter: selectedFabric.purchase_cost_per_meter ?? 0,
-        price_per_meter: selectedFabric.price_per_meter ?? 0,
-        shopId: selectedFabric.shopId?.$id || "",
-        purchaseInvoices: purchaseInvoicesToSet,
-      });
+    } catch (error) {
+      console.error("Error parsing purchaseInvoices:", error);
+      purchaseInvoicesToSet = [];
     }
-  }, [selectedFabric, isEditDialogOpen, form]);
+
+    form.reset({
+      name: selectedFabric.name || "",
+      code: selectedFabric.code || "",
+      stock_quantity: selectedFabric.stock_quantity ?? 0,
+      purchase_cost_per_meter: selectedFabric.purchase_cost_per_meter ?? 0,
+      price_per_meter: selectedFabric.price_per_meter ?? 0,
+      shopId: selectedFabric.shopId?.$id || "",
+      purchaseInvoices: purchaseInvoicesToSet,
+    });
+  }
+}, [selectedFabric, isEditDialogOpen, form]);
 
   // Handle form submission
   const onSubmit = (values) => {
@@ -311,9 +311,8 @@ export default function FabricPage() {
         header: "স্টক",
         cell: ({ row }) => (
           <div
-            className={`font-medium ${
-              isLowStock(row.original.stock_quantity) ? "text-red-600" : ""
-            }`}
+            className={`font-medium ${isLowStock(row.original.stock_quantity) ? "text-red-600" : ""
+              }`}
           >
             {row.original.stock_quantity} মিটার
           </div>
@@ -384,7 +383,7 @@ export default function FabricPage() {
                     </TooltipTrigger>
                   </AlertDialogTrigger>
                   <TooltipContent>
-                    <p>ফ্যাব্রিক ডিলিট করুন</p>
+                    <p>फ্যাব্রিক ডিলিট করুন</p>
                   </TooltipContent>
                 </Tooltip>
                 <AlertDialogContent>
@@ -572,7 +571,7 @@ export default function FabricPage() {
                           <FormLabel>দোকান নির্বাচন করুন</FormLabel>
                           <Select
                             onValueChange={field.onChange}
-                            value={field.value || ""}
+                            value={field.value || undefined}
                             disabled={shopsLoading}
                           >
                             <FormControl>
@@ -581,9 +580,6 @@ export default function FabricPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">
-                                দোকান নির্বাচন করুন
-                              </SelectItem>
                               {shops?.map((shop) => (
                                 <SelectItem key={shop.$id} value={shop.$id}>
                                   {shop.name}
@@ -603,12 +599,12 @@ export default function FabricPage() {
                           <FormLabel>ইনভয়েস নির্বাচন করুন</FormLabel>
                           <Select
                             onValueChange={(value) =>
-                              field.onChange(value === "" ? [] : [value])
+                              field.onChange(value ? [value] : [])
                             }
                             value={
                               field.value && field.value.length > 0
                                 ? field.value[0]
-                                : ""
+                                : undefined
                             }
                             disabled={invoiceLoading}
                           >
@@ -618,7 +614,6 @@ export default function FabricPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">কোন ইনভয়েস নেই</SelectItem>
                               {invoices?.map((invoice) => (
                                 <SelectItem
                                   key={invoice.$id}
@@ -740,9 +735,9 @@ export default function FabricPage() {
                             {header.isPlaceholder
                               ? null
                               : flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext()
-                                )}
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
                           </TableHead>
                         ))}
                       </TableRow>
@@ -784,9 +779,8 @@ export default function FabricPage() {
                 {filteredFabrics.map((fabric) => (
                   <Card
                     key={fabric.$id}
-                    className={`hover:shadow-md transition-shadow ${
-                      isLowStock(fabric.stock_quantity) ? " " : ""
-                    }`}
+                    className={`hover:shadow-md transition-shadow ${isLowStock(fabric.stock_quantity) ? " " : ""
+                      }`}
                   >
                     <CardHeader className="pb-2">
                       <CardTitle className="text-lg font-semibold flex items-center justify-between">
@@ -806,11 +800,10 @@ export default function FabricPage() {
                       <div className="flex items-center gap-2">
                         <BarChart3 className="h-4 w-4 text-muted-foreground" />
                         <p
-                          className={`text-sm font-medium ${
-                            isLowStock(fabric.stock_quantity)
-                              ? "text-red-600"
-                              : ""
-                          }`}
+                          className={`text-sm font-medium ${isLowStock(fabric.stock_quantity)
+                            ? "text-red-600"
+                            : ""
+                            }`}
                         >
                           স্টক: {fabric.stock_quantity} মিটার
                         </p>
@@ -838,8 +831,8 @@ export default function FabricPage() {
                         <p className="text-sm font-medium">
                           সাপ্লায়ার নাম:{" "}
                           {fabric.purchaseInvoices &&
-                          Array.isArray(fabric.purchaseInvoices) &&
-                          fabric.purchaseInvoices.length > 0
+                            Array.isArray(fabric.purchaseInvoices) &&
+                            fabric.purchaseInvoices.length > 0
                             ? fabric.purchaseInvoices[0].supplier_name || "N/A"
                             : "N/A"}
                         </p>
@@ -915,8 +908,10 @@ export default function FabricPage() {
               <p className="text-muted-foreground mb-4">
                 {hasActiveFilters
                   ? "আপনার ফিল্টার অনুযায়ী কোন ফ্যাব্রিক খুঁজে পাওয়া যায়নি"
-                  : "নতুন ফ্যাব্রিক যোগ করে আপনার তালিকা শুরু করুন"}
+                  : "নতুন ফ্যাব্রিক যোগ করে আপনার তালিকা শুরু করুন"
+                }
               </p>
+
               {hasActiveFilters ? (
                 <Button
                   onClick={clearFilters}
@@ -1060,7 +1055,7 @@ export default function FabricPage() {
                       <FormLabel>দোকান নির্বাচন করুন</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        value={field.value || "none"} // value="" এর বদলে value="none" ব্যবহার করা হয়েছে
+                        value={field.value || undefined}
                         disabled={shopsLoading}
                       >
                         <FormControl>
@@ -1069,9 +1064,6 @@ export default function FabricPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="none">
-                            দোকান নির্বাচন করুন
-                          </SelectItem>
                           {shops?.map((shop) => (
                             <SelectItem key={shop.$id} value={shop.$id}>
                               {shop.name}
@@ -1091,12 +1083,12 @@ export default function FabricPage() {
                       <FormLabel>ইনভয়েস নির্বাচন করুন</FormLabel>
                       <Select
                         onValueChange={(value) =>
-                          field.onChange(value === "none" ? [] : [value])
+                          field.onChange(value ? [value] : [])
                         }
                         value={
                           field.value && field.value.length > 0
                             ? field.value[0]
-                            : "none"
+                            : undefined
                         }
                         disabled={invoiceLoading}
                       >
@@ -1106,7 +1098,6 @@ export default function FabricPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="none">কোন ইনভয়েস নেই</SelectItem>
                           {invoices?.map((invoice) => (
                             <SelectItem key={invoice.$id} value={invoice.$id}>
                               {invoice.invoice_number} ({invoice.supplier_name})
