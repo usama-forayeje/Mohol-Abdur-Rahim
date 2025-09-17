@@ -124,6 +124,25 @@ export default function AppSidebar() {
         ],
       },
       {
+        title: "কাপড় ব্যবস্থাপনা",
+        icon: Package,
+        permissions: [PERMISSIONS.MANAGE_FABRICS],
+        items: [
+          {
+            title: "কাপড় বিক্রি",
+            icon: Package,
+            url: "/dashboard/fabrics/sales",
+            permissions: [PERMISSIONS.MANAGE_FABRICS],
+          },
+          {
+            title: "কাপড়ের রিপোর্ট",
+            icon: FileText,
+            url: "/dashboard/fabrics/report",
+            permissions: [PERMISSIONS.MANAGE_RAW_MATERIALS],
+          },
+        ],
+      },
+      {
         title: "ইনভেন্টরি",
         icon: Package,
         permissions: [PERMISSIONS.VIEW_INVENTORY],
