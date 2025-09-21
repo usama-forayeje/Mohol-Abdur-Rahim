@@ -65,7 +65,7 @@ export const purchaseInvoiceService = {
   async updateInvoice(id, data, fileInput, previousFileId = null) {
     try {
       let fileId = null;
-      
+
       // Check if a new file was provided
       if (fileInput && fileInput[0]) {
         // Upload new file
@@ -75,13 +75,14 @@ export const purchaseInvoiceService = {
           fileInput[0]
         );
         fileId = uploadedFile.$id;
-        
+
         // Delete previous file if it exists and a new file is uploaded
         if (previousFileId) {
           try {
             await storage.deleteFile(STORAGE_ID, previousFileId);
           } catch (err) {
-            if (err.code !== 404) { // Ignore "not found" errors
+            if (err.code !== 404) {
+              // Ignore "not found" errors
               console.error("Error deleting previous file:", err);
             }
           }
@@ -101,7 +102,12 @@ export const purchaseInvoiceService = {
         updateData.fileId = fileId;
       }
 
-      return await databases.updateDocument(DATABASE_ID, COLLECTION_ID, id, updateData);
+      return await databases.updateDocument(
+        DATABASE_ID,
+        COLLECTION_ID,
+        id,
+        updateData
+      );
     } catch (error) {
       console.error("Error updating invoice:", error);
       throw error;
@@ -131,13 +137,11 @@ export function useInvoices() {
     queryKey: ["invoices"],
     queryFn: async () => {
       const data = await purchaseInvoiceService.getInvoices();
-
-      // Store এ invoices set করি
+      // Optional: update store
       useInvoiceStore.getState().setInvoices(data);
-
       return data;
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 }
 

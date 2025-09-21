@@ -67,12 +67,6 @@ export default function AppSidebar() {
   const { data: availableShops } = useShops()
   const currentRole = getUserRole()
 
-  console.log('🔧 Sidebar render:', {
-    currentRole,
-    userProfile: userProfile?.name,
-    isViewingAllShops: isViewingAllShops()
-  });
-
   const getNavigationItems = (userRole) => {
     const baseItems = [
       {
@@ -166,7 +160,7 @@ export default function AppSidebar() {
           {
             title: "ক্রয়ের রশীদ",
             icon: FileText,
-            url: "/dashboard/inventory/purchase-invoice",
+            url: "/dashboard/inventory/purchaseInvoice",
             roles: ["superAdmin", "admin", "manager"],
             permission: "MANAGE_FABRICS",
           },
