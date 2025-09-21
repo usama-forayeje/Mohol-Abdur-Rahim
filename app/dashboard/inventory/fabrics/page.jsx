@@ -79,6 +79,9 @@ import {
   Filter,
   AlertTriangle,
   X,
+  Ruler,
+  Palette,
+  LayoutGrid,
 } from "lucide-react";
 import {
   useFabrics,
@@ -100,9 +103,25 @@ const fabricSchema = z.object({
   price_per_meter: z.number().min(0, "বিক্রয়মূল্য ০ বা তার বেশি হতে হবে"),
   shopId: z.string().optional(),
   purchaseInvoices: z.array(z.string()).optional(),
+  width: z.string().optional().nullable(),
+  color: z.string().optional().nullable(),
+  category: z.string().optional().nullable(),
 });
 
-const LOW_STOCK_THRESHOLD = 10; // মিটার - এই পরিমাণের কম হলে warning দেখাবে
+const LOW_STOCK_THRESHOLD = 10;
+
+// ড্রপডাউনের জন্য ডামি অপশন ডেটা
+const COLOR_OPTIONS = [
+  "লাল", "নীল", "সবুজ", "হলুদ", "কালো", "সাদা", "বাদামী", "গোলাপী", "বেগুনী", "কমলা"
+];
+
+const CATEGORY_OPTIONS = [
+  "কটন", "সিল্ক", "লিনেন", "পলিয়েস্টার", "উল", "ডেনিম", "নাইলন", "রেয়ন"
+];
+
+const WIDTH_OPTIONS = [
+  "120", "130", "140", "150", "160", "170", "180"
+];
 
 export default function FabricPage() {
   const { data: fabrics, isLoading, refetch } = useFabrics();
@@ -118,7 +137,6 @@ export default function FabricPage() {
   const { data: shops, isLoading: shopsLoading } = useShops();
   const { data: invoices, isLoading: invoiceLoading } = useInvoices();
 
-  // Form setup with proper default values
   const defaultFormValues = {
     name: "",
     code: "",
@@ -127,6 +145,9 @@ export default function FabricPage() {
     price_per_meter: "",
     shopId: "",
     purchaseInvoices: [],
+    width: "",
+    color: "",
+    category: "",
   };
 
   const form = useForm({
@@ -134,58 +155,61 @@ export default function FabricPage() {
     defaultValues: defaultFormValues,
   });
 
-  // Reset form when dialogs close
   const resetForm = () => {
     form.reset(defaultFormValues);
     setSelectedFabric(null);
   };
 
-  // Handle edit fabric
- useEffect(() => {
-  if (selectedFabric && isEditDialogOpen) {
-    let purchaseInvoicesToSet = [];
+  useEffect(() => {
+    if (selectedFabric && isEditDialogOpen) {
+      let purchaseInvoicesToSet = [];
 
-    try {
-      const selectedInvoices = selectedFabric.purchaseInvoices;
-      if (selectedInvoices) {
-        if (Array.isArray(selectedInvoices) && selectedInvoices.length > 0) {
-          const firstInvoice = selectedInvoices[0];
-          const invoiceId =
-            firstInvoice?.$id ||
-            (typeof firstInvoice === "string" ? firstInvoice : null); // Fixed: removed extra quote
-          if (invoiceId) {
-            purchaseInvoicesToSet = [invoiceId];
+      try {
+        const selectedInvoices = selectedFabric.purchaseInvoices;
+        if (selectedInvoices) {
+          if (Array.isArray(selectedInvoices) && selectedInvoices.length > 0) {
+            const firstInvoice = selectedInvoices[0];
+            const invoiceId =
+              firstInvoice?.$id ||
+              (typeof firstInvoice === "string" ? firstInvoice : null);
+            if (invoiceId) {
+              purchaseInvoicesToSet = [invoiceId];
+            }
+          } else if (selectedInvoices.$id) {
+            purchaseInvoicesToSet = [selectedInvoices.$id];
+          } else if (typeof selectedInvoices === "string") {
+            purchaseInvoicesToSet = [selectedInvoices];
           }
-        } else if (selectedInvoices.$id) {
-          purchaseInvoicesToSet = [selectedInvoices.$id];
-        } else if (typeof selectedInvoices === "string") {
-          purchaseInvoicesToSet = [selectedInvoices];
         }
+      } catch (error) {
+        console.error("Error parsing purchaseInvoices:", error);
+        purchaseInvoicesToSet = [];
       }
-    } catch (error) {
-      console.error("Error parsing purchaseInvoices:", error);
-      purchaseInvoicesToSet = [];
+
+      form.reset({
+        name: selectedFabric.name || "",
+        code: selectedFabric.code || "",
+        stock_quantity: selectedFabric.stock_quantity ?? 0,
+        purchase_cost_per_meter: selectedFabric.purchase_cost_per_meter ?? 0,
+        price_per_meter: selectedFabric.price_per_meter ?? 0,
+        shopId: selectedFabric.shopId?.$id || "",
+        purchaseInvoices: purchaseInvoicesToSet,
+        width: selectedFabric.width ? selectedFabric.width.toString() : "",
+        color: selectedFabric.color || "",
+        category: selectedFabric.category || "",
+      });
     }
+  }, [selectedFabric, isEditDialogOpen, form]);
 
-    form.reset({
-      name: selectedFabric.name || "",
-      code: selectedFabric.code || "",
-      stock_quantity: selectedFabric.stock_quantity ?? 0,
-      purchase_cost_per_meter: selectedFabric.purchase_cost_per_meter ?? 0,
-      price_per_meter: selectedFabric.price_per_meter ?? 0,
-      shopId: selectedFabric.shopId?.$id || "",
-      purchaseInvoices: purchaseInvoicesToSet,
-    });
-  }
-}, [selectedFabric, isEditDialogOpen, form]);
-
-  // Handle form submission
   const onSubmit = (values) => {
     const dataToSend = {
       ...values,
       shopId: values.shopId === "" ? null : values.shopId,
       purchaseInvoices:
         values.purchaseInvoices.length > 0 ? values.purchaseInvoices : null,
+      width: values.width === "" ? null : values.width,
+      color: values.color === "" ? null : values.color,
+      category: values.category === "" ? null : values.category,
     };
 
     if (selectedFabric) {
@@ -224,34 +248,28 @@ export default function FabricPage() {
     });
   };
 
-  // Handle edit button click
   const handleEditClick = (fabric) => {
     setSelectedFabric(fabric);
     setIsEditDialogOpen(true);
   };
 
-  // Handle new fabric button click
   const handleNewFabricClick = () => {
     resetForm();
     setIsDialogOpen(true);
   };
 
-  // Filter fabrics based on search and filters
   const filteredFabrics = useMemo(() => {
     if (!fabrics) return [];
 
     return fabrics.filter((fabric) => {
-      // Search filter
       const searchMatch =
         fabric.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         fabric.code.toLowerCase().includes(searchTerm.toLowerCase());
 
-      // Shop filter
       const shopMatch =
         selectedShopFilter === "all" ||
         fabric.shopId?.$id === selectedShopFilter;
 
-      // Stock filter
       const stockMatch =
         stockFilter === "all" ||
         (stockFilter === "low" &&
@@ -263,7 +281,6 @@ export default function FabricPage() {
     });
   }, [fabrics, searchTerm, selectedShopFilter, stockFilter]);
 
-  // Get low stock count
   const lowStockCount = useMemo(() => {
     return (
       fabrics?.filter((fabric) => fabric.stock_quantity <= LOW_STOCK_THRESHOLD)
@@ -271,10 +288,8 @@ export default function FabricPage() {
     );
   }, [fabrics]);
 
-  // Check if fabric has low stock
   const isLowStock = (quantity) => quantity <= LOW_STOCK_THRESHOLD;
 
-  // Clear filters
   const clearFilters = () => {
     setSearchTerm("");
     setSelectedShopFilter("all");
@@ -329,24 +344,25 @@ export default function FabricPage() {
         cell: ({ row }) => `OMR ${row.original.price_per_meter}`,
       },
       {
+        accessorKey: "width",
+        header: "প্রস্থ",
+        cell: ({ row }) => row.original.width ? `${row.original.width} সেমি` : "N/A",
+      },
+      {
+        accessorKey: "color",
+        header: "রং",
+        cell: ({ row }) => row.original.color || "N/A",
+      },
+      {
+        accessorKey: "category",
+        header: "ক্যাটাগরি",
+        cell: ({ row }) => row.original.category || "N/A",
+      },
+      {
         accessorKey: "shopId",
         header: "দোকান",
         cell: ({ row }) =>
           row.original.shopId ? row.original.shopId.name : "N/A",
-      },
-      {
-        accessorKey: "invoiceId",
-        header: "সাপ্লায়ার নাম",
-        cell: ({ row }) => {
-          if (
-            row.original.purchaseInvoices &&
-            Array.isArray(row.original.purchaseInvoices) &&
-            row.original.purchaseInvoices.length > 0
-          ) {
-            return row.original.purchaseInvoices[0].supplier_name || "N/A";
-          }
-          return "N/A";
-        },
       },
       {
         id: "actions",
@@ -383,7 +399,7 @@ export default function FabricPage() {
                     </TooltipTrigger>
                   </AlertDialogTrigger>
                   <TooltipContent>
-                    <p>फ্যাব্রিক ডিলিট করুন</p>
+                    <p>ফ্যাব্রিক ডিলিট করুন</p>
                   </TooltipContent>
                 </Tooltip>
                 <AlertDialogContent>
@@ -562,6 +578,92 @@ export default function FabricPage() {
                       </FormItem>
                     )}
                   />
+
+                  {/* নতুন ফিল্ডগুলো যোগ করুন */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="width"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>প্রস্থ (সেমি)</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value || undefined}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="প্রস্থ নির্বাচন করুন" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {WIDTH_OPTIONS.map((width) => (
+                                <SelectItem key={width} value={width.toString()}>
+                                  {width} সেমি
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="color"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>রং</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value || undefined}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="রং নির্বাচন করুন" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {COLOR_OPTIONS.map((color) => (
+                                <SelectItem key={color} value={color}>
+                                  {color}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>ক্যাটাগরি</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value || undefined}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="ক্যাটাগরি নির্বাচন করুন" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {CATEGORY_OPTIONS.map((category) => (
+                                <SelectItem key={category} value={category}>
+                                  {category}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -821,6 +923,24 @@ export default function FabricPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
+                        <Ruler className="h-4 w-4 text-muted-foreground" />
+                        <p className="text-sm font-medium">
+                          প্রস্থ: {fabric.width ? `${fabric.width} সেমি` : "N/A"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Palette className="h-4 w-4 text-muted-foreground" />
+                        <p className="text-sm font-medium">
+                          রং: {fabric.color || "N/A"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <LayoutGrid className="h-4 w-4 text-muted-foreground" />
+                        <p className="text-sm font-medium">
+                          ক্যাটাগরি: {fabric.category || "N/A"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
                         <Store className="h-4 w-4 text-muted-foreground" />
                         <p className="text-sm font-medium">
                           দোকান: {fabric.shopId ? fabric.shopId.name : "N/A"}
@@ -1046,6 +1166,92 @@ export default function FabricPage() {
                   </FormItem>
                 )}
               />
+
+              {/* নতুন ফিল্ডগুলো যোগ করুন */}
+              <div className="grid grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="width"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>প্রস্থ (সেমি)</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || undefined}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="প্রস্থ নির্বাচন করুন" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {WIDTH_OPTIONS.map((width) => (
+                            <SelectItem key={width} value={width}>
+                              {width} সেমি
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="color"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>রং</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || undefined}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="রং নির্বাচন করুন" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {COLOR_OPTIONS.map((color) => (
+                            <SelectItem key={color} value={color}>
+                              {color}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>ক্যাটাগরি</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || undefined}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="ক্যাটাগরি নির্বাচন করুন" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {CATEGORY_OPTIONS.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
