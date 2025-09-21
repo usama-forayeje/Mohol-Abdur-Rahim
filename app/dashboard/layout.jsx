@@ -11,7 +11,7 @@ export default async function DashboardLayout({ children }) {
     <Providers>
       <SidebarProvider defaultOpen={defaultOpen}>
         <AppSidebar />
-        <SidebarInset className="-mt-5 md:-mt-8">
+        <SidebarInset>
           <Header />
           {children}
         </SidebarInset>

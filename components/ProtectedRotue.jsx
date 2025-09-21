@@ -3,105 +3,133 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
+import { AlertTriangle } from "lucide-react";
 
 export function ProtectedRoute({
   children,
   requireAuth = true,
-  requiredRoles = [],
-  allowUnauthenticatedAccess = false,
+  requiredRoles = null,
+  fallbackPath = "/sign-in"
 }) {
-  const { isAuthenticated, userProfile, isLoading, hasInitialized } =
-    useAuthStore();
-  const [hasCheckedAccess, setHasCheckedAccess] = useState(false);
+  const {
+    isAuthenticated,
+    userProfile,
+    isLoading,
+    canAccessDashboard,
+    getUserRole
+  } = useAuthStore();
+
+  const [hasChecked, setHasChecked] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    if (!hasInitialized() || isLoading) return;
-
-    const userRole = userProfile?.role;
-    let shouldRedirect = false;
-    let redirectPath = "/sign-in";
-
-    // Check authentication requirement
-    if (requireAuth && !isAuthenticated) {
-      if (!allowUnauthenticatedAccess) {
-        shouldRedirect = true;
-        redirectPath = "/sign-in";
-      }
-    }
-    // Check role requirement
-    else if (isAuthenticated && requiredRoles.length > 0) {
-      if (!userRole || !requiredRoles.includes(userRole)) {
-        shouldRedirect = true;
-        redirectPath = getDashboardPathForRole(userRole);
-      }
-    }
-    // Prevent authenticated users from accessing auth pages
-    else if (
-      isAuthenticated &&
-      !requireAuth &&
-      typeof window !== "undefined" &&
-      window.location.pathname.includes("sign-in")
-    ) {
-      shouldRedirect = true;
-      redirectPath = getDashboardPathForRole(userRole);
-    }
-
-    if (shouldRedirect && !hasCheckedAccess) {
-      router.replace(redirectPath);
-      setHasCheckedAccess(true);
+    // Wait for auth to load
+    if (isLoading) {
+      console.log('🔐 ProtectedRoute: Auth still loading...');
       return;
     }
 
-    setHasCheckedAccess(true);
-  }, [
-    hasInitialized,
-    isLoading,
-    isAuthenticated,
-    userProfile?.role,
-    requireAuth,
-    requiredRoles,
-    allowUnauthenticatedAccess,
-    hasCheckedAccess,
-    router,
-  ]);
+    console.log('🔐 ProtectedRoute: Checking access...', {
+      requireAuth,
+      isAuthenticated,
+      userRole: userProfile?.role,
+      requiredRoles
+    });
 
-  const getDashboardPathForRole = (userRole) => {
-    switch (userRole) {
-      case "admin":
-      case "superAdmin":
-      case "manager":
-        return "/dashboard";
-      case "user":
-      default:
-        return "/";
+    // Check authentication first
+    if (requireAuth && !isAuthenticated) {
+      console.log('❌ Not authenticated, redirecting to sign-in');
+      router.replace(fallbackPath);
+      return;
     }
-  };
 
-  // Show loading while checking
-  if (!hasInitialized() || isLoading || !hasCheckedAccess) {
+    // If authenticated, check role-based access
+    if (isAuthenticated && requireAuth) {
+      const currentPath = window.location.pathname;
+      const userRole = getUserRole();
+
+      // Block 'user' role from dashboard
+      if (currentPath.includes("dashboard") && userRole === 'user') {
+        console.log('❌ User role cannot access dashboard');
+        router.replace("/");
+        return;
+      }
+
+      // Check if user can access dashboard at all
+      if (currentPath.includes("dashboard") && !canAccessDashboard()) {
+        console.log('❌ User cannot access dashboard');
+        router.replace("/");
+        return;
+      }
+
+      // Check specific role requirements
+      if (requiredRoles && Array.isArray(requiredRoles)) {
+        if (!requiredRoles.includes(userRole)) {
+          console.log('❌ User role not in required roles:', { userRole, requiredRoles });
+          router.replace("/dashboard"); // Redirect to main dashboard instead of sign-in
+          return;
+        }
+      }
+    }
+
+    console.log('✅ Access granted');
+    setHasChecked(true);
+  }, [isLoading, isAuthenticated, userProfile, requireAuth, requiredRoles, router, canAccessDashboard, getUserRole, fallbackPath]);
+
+  // Loading state
+  if (isLoading || !hasChecked) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-lg text-gray-700">লোড হচ্ছে...</p>
+          <p className="text-gray-600 dark:text-gray-400">লোড হচ্ছে...</p>
         </div>
       </div>
     );
   }
 
-  // Don't render if checks failed
-  if (requireAuth && !isAuthenticated && !allowUnauthenticatedAccess) {
-    return null;
-  }
-
-  if (
-    isAuthenticated &&
-    requiredRoles.length > 0 &&
-    !requiredRoles.includes(userProfile?.role)
-  ) {
+  // Block unauthorized access
+  if (requireAuth && !isAuthenticated) {
     return null;
   }
 
   return children;
+}
+
+// Dashboard specific wrapper
+export function DashboardAccess({ children }) {
+  return (
+    <ProtectedRoute
+      requireAuth={true}
+      requiredRoles={["superAdmin", "admin", "manager", "tailor", "salesman", "embroideryMan", "stoneMan"]}
+    >
+      {children}
+    </ProtectedRoute>
+  );
+}
+
+// Admin specific wrapper
+export function AdminAccess({ children }) {
+  return (
+    <ProtectedRoute
+      requireAuth={true}
+      requiredRoles={["superAdmin", "admin"]}
+      fallbackPath="/dashboard"
+    >
+      {children}
+    </ProtectedRoute>
+  );
+}
+
+// SuperAdmin specific wrapper
+export function SuperAdminAccess({ children }) {
+  return (
+    <ProtectedRoute
+      requireAuth={true}
+      requiredRoles={["superAdmin"]}
+      fallbackPath="/dashboard"
+    >
+      {children}
+    </ProtectedRoute>
+  );
 }

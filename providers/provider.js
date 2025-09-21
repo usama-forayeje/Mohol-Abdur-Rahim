@@ -1,8 +1,6 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider } from "./authProvider";
-import { ShopProvider } from "@/contexts/ShopContext";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { ActiveThemeProvider } from "@/components/active-theme";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
@@ -27,9 +25,7 @@ export function Providers({ activeThemeValue, children }) {
           defaultTheme="system"
           enableSystem
         >
-          <AuthProvider>
-            <ShopProvider>{children}</ShopProvider>
-          </AuthProvider>
+          {children}
         </ActiveThemeProvider>
       </NextThemesProvider>
       <ReactQueryDevtools initialIsOpen={false} />

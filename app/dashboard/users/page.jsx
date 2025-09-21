@@ -1,875 +1,565 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import {
-    useUsers,
-    useUpdateUserRole,
-    useUpdateUserStatus,
-    useUpdateUserShop,
-    useDeleteUser,
-    useCreateUser,
-    useUpdateUserPhone,
-} from "@/services/user-service";
+import { userManagementService } from "@/services/user-management.service";
 import { useShops } from "@/services/shop-service";
-
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { useAuthStore } from "@/store/auth-store";
+import { toast } from "sonner";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
-    AlertDialog,
-    AlertDialogTrigger,
-    AlertDialogContent,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogDescription,
-    AlertDialogCancel,
-    AlertDialogAction,
-    AlertDialogFooter,
-} from "@/components/ui/alert-dialog";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import {
-    Plus,
-    Trash2,
-    Edit2,
-    Eye,
-    Search,
-    Loader2,
-    Filter,
-    User,
-    Shield,
-    Crown,
-    Settings,
-    Scissors,
-    Store,
-    UserCheck,
-    UserX,
-    X,
-    Mail,
-    Phone,
-    Calendar,
-    BadgeCheck,
-    BadgeX,
-} from "lucide-react";
-import Image from "next/image";
-import PageContainer from "@/components/layout/page-container";
 import { Badge } from "@/components/ui/badge";
-import { useUserStore } from "@/store/user-store";
-import { toast } from "sonner";
-import { useAuthStore } from "@/store/auth-store";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Users,
+  UserPlus,
+  Settings,
+  Building2,
+  Shield,
+  Crown,
+  Scissors,
+  Store,
+  User,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Edit2,
+  Trash2,
+  Mail,
+  Phone,
+  Calendar,
+  Activity,
+  UserCheck,
+  UserX,
+  Search,
+  Filter,
+  RefreshCw,
+} from "lucide-react";
+import { AdminAccess } from "@/components/ProtectedRotue";
 
-const roleSchema = z.object({
-    role: z.string().min(1, "Role is required"),
-    status: z.string().min(1, "Status is required"),
-    phone: z.string().optional(),
-    shopId: z.string().optional(),
-});
+// Role বাংলা নাম
+const roleNames = {
+  superAdmin: "সুপার অ্যাডমিন",
+  admin: "অ্যাডমিন",
+  manager: "ম্যানেজার",
+  salesman: "বিক্রয়কর্মী",
+  tailor: "দর্জি",
+  embroideryMan: "এমব্রয়ডারি কারিগর",
+  stoneMan: "স্টোন ওয়ার্ক কারিগর",
+  user: "সাধারণ ইউজার",
+};
 
-const createUserSchema = z.object({
-    name: z.string().min(2, "Name must be at least 2 characters"),
-    email: z.string().email("Invalid email address"),
-    role: z.string().min(1, "Role is required"),
-    phone: z.string().optional(),
-    shopId: z.string().optional(),
-});
+// Role icons and colors
+const roleConfig = {
+  superAdmin: { icon: Crown, color: "bg-red-500" },
+  admin: { icon: Shield, color: "bg-purple-500" },
+  manager: { icon: Settings, color: "bg-blue-500" },
+  salesman: { icon: Store, color: "bg-orange-500" },
+  tailor: { icon: Scissors, color: "bg-green-500" },
+  embroideryMan: { icon: Settings, color: "bg-pink-500" },
+  stoneMan: { icon: Settings, color: "bg-yellow-500" },
+  user: { icon: User, color: "bg-gray-500" },
+};
 
-const ROLES = [
-    { value: "superAdmin", label: "Super Admin", icon: Crown, color: "text-red-600" },
-    { value: "admin", label: "Admin", icon: Shield, color: "text-purple-600" },
-    { value: "manager", label: "Manager", icon: Settings, color: "text-blue-600" },
-    { value: "tailor", label: "Tailor", icon: Scissors, color: "text-green-600" },
-    { value: "user", label: "User", icon: User, color: "text-gray-600" },
-    { value: "salesman", label: "Salesman", icon: Store, color: "text-orange-600" },
-    { value: "embroideryMan", label: "Embroidery", icon: Settings, color: "text-pink-600" },
-    { value: "stoneMan", label: "Stone Work", icon: Settings, color: "text-yellow-600" },
-];
+function UserManagementContent() {
+  const { userProfile, getUserRole } = useAuthStore();
+  const currentUserRole = getUserRole();
+  const { data: shops, isLoading: shopsLoading } = useShops();
 
-const STATUSES = [
-    { value: "active", label: "Active", icon: UserCheck, color: "text-green-600" },
-    { value: "inactive", label: "Inactive", icon: UserX, color: "text-red-600" },
-    { value: "suspended", label: "Suspended", icon: BadgeX, color: "text-orange-600" },
-];
+
+  const [users, setUsers] = useState([]);
+  const [pendingUsers, setPendingUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTab, setSelectedTab] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+
+  // Dialog states
+  const [assignRoleDialog, setAssignRoleDialog] = useState({
+    open: false,
+    user: null,
+    assignment: null,
+  });
+
+  const [selectedRole, setSelectedRole] = useState("");
+  const [selectedShop, setSelectedShop] = useState("");
+
+  // Load users
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const [allUsers, pending] = await Promise.all([
+        userManagementService.getAllUsersWithShops(),
+        userManagementService.getPendingUsers(),
+      ]);
+      setUsers(allUsers);
+      setPendingUsers(pending);
+    } catch (error) {
+      toast.error("ইউজার লোড করতে ব্যর্থ হয়েছে");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  // Get assignable roles for current user
+  const assignableRoles = userManagementService.getAssignableRoles(currentUserRole);
+
+
+  // Filter users
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
+      searchQuery === "" ||
+      user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesRole =
+      roleFilter === "all" || user.primaryRole === roleFilter;
+
+    const matchesTab =
+      selectedTab === "all" ||
+      (selectedTab === "active" && user.activeShops > 0) ||
+      (selectedTab === "inactive" && user.activeShops === 0);
+
+    return matchesSearch && matchesRole && matchesTab;
+  });
+
+  // Handle role assignment
+  const handleAssignRole = async () => {
+    if (!selectedRole || !selectedShop) {
+      toast.error("দয়া করে role এবং shop নির্বাচন করুন");
+      return;
+    }
+
+    try {
+      if (assignRoleDialog.assignment) {
+        // Update existing assignment
+        await userManagementService.updateUserRole(
+          assignRoleDialog.assignment.assignmentId,
+          selectedRole,
+          currentUserRole
+        );
+        toast.success("Role সফলভাবে আপডেট হয়েছে");
+      } else {
+        // Create new assignment
+        await userManagementService.assignUserRole(
+          assignRoleDialog.user.$id,
+          selectedShop,
+          selectedRole,
+          userProfile.$id,
+          currentUserRole
+        );
+        toast.success("Role সফলভাবে assign হয়েছে");
+      }
+
+      setAssignRoleDialog({ open: false, user: null, assignment: null });
+      setSelectedRole("");
+      setSelectedShop("");
+      await loadUsers();
+    } catch (error) {
+      toast.error(error.message || "Role assign করতে ব্যর্থ");
+      console.error(error);
+    }
+  };
+
+  // Toggle user status
+  const handleToggleStatus = async (assignment, newStatus) => {
+    try {
+      await userManagementService.toggleUserStatus(
+        assignment.assignmentId,
+        newStatus,
+        currentUserRole
+      );
+      toast.success(`Status ${newStatus === "active" ? "active" : "inactive"} করা হয়েছে`);
+      await loadUsers();
+    } catch (error) {
+      toast.error(error.message || "Status পরিবর্তন করতে ব্যর্থ");
+    }
+  };
+
+  // Remove user from shop
+  const handleRemoveFromShop = async (assignment) => {
+    if (!confirm("আপনি কি নিশ্চিত এই ইউজারকে shop থেকে remove করতে চান?")) {
+      return;
+    }
+
+    try {
+      await userManagementService.removeUserFromShop(
+        assignment.assignmentId,
+        currentUserRole
+      );
+      toast.success("ইউজার shop থেকে remove করা হয়েছে");
+      await loadUsers();
+    } catch (error) {
+      toast.error(error.message || "Remove করতে ব্যর্থ");
+    }
+  };
+
+  // Get role icon
+  const getRoleIcon = (role) => {
+    const config = roleConfig[role] || roleConfig.user;
+    const Icon = config.icon;
+    return <Icon className="w-4 h-4" />;
+  };
+
+  return (
+    <div className="space-y-6 p-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">ইউজার ম্যানেজমেন্ট</h1>
+          <p className="text-muted-foreground mt-1">
+            সব ইউজার এবং তাদের role পরিচালনা করুন
+          </p>
+        </div>
+        <Button onClick={loadUsers} variant="outline">
+          <RefreshCw className="w-4 h-4 mr-2" />
+          রিফ্রেশ
+        </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">মোট ইউজার</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{users.length}</div>
+            <p className="text-xs text-muted-foreground">সব ইউজার</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">সক্রিয় ইউজার</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {users.filter((u) => u.activeShops > 0).length}
+            </div>
+            <p className="text-xs text-muted-foreground">Shop এ assigned</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">অপেক্ষমান</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{pendingUsers.length}</div>
+            <p className="text-xs text-muted-foreground">Shop নেই</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">কর্মী</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {users.filter((u) =>
+                ["tailor", "embroideryMan", "stoneMan", "salesman"].includes(
+                  u.primaryRole
+                )
+              ).length}
+            </div>
+            <p className="text-xs text-muted-foreground">কাজের ইউজার</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="নাম বা ইমেইল দিয়ে খুঁজুন..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Role ফিল্টার" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">সব Role</SelectItem>
+                {Object.entries(roleNames).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Tabs */}
+      <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+        <TabsList className="grid w-full max-w-md grid-cols-3">
+          <TabsTrigger value="all">সব ইউজার</TabsTrigger>
+          <TabsTrigger value="active">সক্রিয়</TabsTrigger>
+          <TabsTrigger value="inactive">নিষ্ক্রিয়</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value={selectedTab} className="mt-6">
+          {loading ? (
+            <div className="text-center py-12">
+              <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4" />
+              <p>লোড হচ্ছে...</p>
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>কোন ইউজার পাওয়া যায়নি</AlertTitle>
+              <AlertDescription>
+                আপনার ফিল্টার অনুযায়ী কোন ইউজার নেই
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ইউজার</TableHead>
+                      <TableHead>যোগাযোগ</TableHead>
+                      <TableHead>Shop & Role</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>যোগদান</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.map((user) => (
+                      <TableRow key={user.$id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarImage src={user.avatar} />
+                              <AvatarFallback>
+                                {user.name?.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium">{user.name}</div>
+                              <Badge
+                                variant="outline"
+                                className={`mt-1 ${roleConfig[user.primaryRole]?.color || "bg-gray-500"
+                                  } text-white`}
+                              >
+                                {getRoleIcon(user.primaryRole)}
+                                <span className="ml-1">
+                                  {roleNames[user.primaryRole]}
+                                </span>
+                              </Badge>
+                            </div>
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex items-center gap-1">
+                              <Mail className="w-3 h-3" />
+                              {user.email}
+                            </div>
+                            {user.phone && (
+                              <div className="flex items-center gap-1">
+                                <Phone className="w-3 h-3" />
+                                {user.phone}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          {user.assignments.length > 0 ? (
+                            <div className="space-y-2">
+                              {user.assignments.map((assignment) => (
+                                <div
+                                  key={assignment.assignmentId}
+                                  className="flex items-center gap-2"
+                                >
+                                  <Building2 className="w-4 h-4 text-muted-foreground" />
+                                  <div className="text-sm">
+                                    <span className="font-medium">
+                                      {assignment.shop?.name}
+                                    </span>
+                                    <Badge variant="outline" className="ml-2">
+                                      {roleNames[assignment.role]}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              কোন shop নেই
+                            </span>
+                          )}
+                        </TableCell>
+
+                        <TableCell>
+                          {user.activeShops > 0 ? (
+                            <Badge className="bg-green-500">
+                              <UserCheck className="w-3 h-3 mr-1" />
+                              সক্রিয়
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">
+                              <UserX className="w-3 h-3 mr-1" />
+                              নিষ্ক্রিয়
+                            </Badge>
+                          )}
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(user.$createdAt).toLocaleDateString("bn-BD")}
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            {user.assignments.map((assignment) => (
+                              <div key={assignment.assignmentId} className="flex gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setAssignRoleDialog({ open: true, user, assignment })}
+                                  title="Role পরিবর্তন"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  variant={assignment.status === "active" ? "secondary" : "default"}
+                                  size="sm"
+                                  onClick={() => handleToggleStatus(assignment, assignment.status === "active" ? "inactive" : "active")}
+                                  title={assignment.status === "active" ? "নিষ্ক্রিয় করুন" : "সক্রিয় করুন"}
+                                >
+                                  {assignment.status === "active" ? <UserX className="w-3 h-3" /> : <UserCheck className="w-3 h-3" />}
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleRemoveFromShop(assignment)}
+                                  title="Shop থেকে remove"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Role Assignment Dialog */}
+      <Dialog open={assignRoleDialog.open} onOpenChange={(open) => setAssignRoleDialog({ ...assignRoleDialog, open })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Role Assign করুন</DialogTitle>
+            <DialogDescription>
+              {assignRoleDialog.user?.name} এর জন্য role এবং shop নির্বাচন করুন
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Label>Shop নির্বাচন</Label>
+            <Select value={selectedShop} onValueChange={setSelectedShop}>
+              <SelectTrigger>
+                <SelectValue placeholder="Shop নির্বাচন করুন" />
+              </SelectTrigger>
+              <SelectContent>
+                {shops?.map((shop) => (
+                  <SelectItem key={shop.$id} value={shop.$id}>
+                    {shop.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Label>Role নির্বাচন</Label>
+            <Select value={selectedRole} onValueChange={setSelectedRole}>
+              <SelectTrigger>
+                <SelectValue placeholder="Role নির্বাচন করুন" />
+              </SelectTrigger>
+              <SelectContent>
+                {assignableRoles.map((role) => (
+                  <SelectItem key={role.value} value={role.value}>
+                    {role.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignRoleDialog({ open: false, user: null, assignment: null })}>
+              বাতিল
+            </Button>
+            <Button onClick={handleAssignRole}>
+              {assignRoleDialog.assignment ? "আপডেট" : "Assign"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
 
 export default function UsersPage() {
-    const [selectedUser, setSelectedUser] = useState(null);
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [roleFilter, setRoleFilter] = useState("all");
-    const [statusFilter, setStatusFilter] = useState("all");
-    const { user: currentUser } = useAuthStore();
-
-    const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm({
-        resolver: zodResolver(roleSchema),
-        defaultValues: {
-            role: "",
-            phone: "",
-            status: "active",
-            shopId: "",
-        },
-    });
-
-    const { control: createControl, handleSubmit: handleCreateSubmit, reset: resetCreate, formState: { errors: createErrors } } = useForm({
-        resolver: zodResolver(createUserSchema),
-        defaultValues: {
-            name: "",
-            email: "",
-            role: "user",
-            phone: "",
-            shopId: "",
-        },
-    });
-
-    const { isLoading } = useUsers();
-    const users = useUserStore((state) => state.users);
-    const { data: shops, isLoading: shopsLoading } = useShops();
-
-    const updateUserRole = useUpdateUserRole();
-    const updateUserStatus = useUpdateUserStatus();
-    const updateUserShop = useUpdateUserShop();
-    const updateUserPhone = useUpdateUserPhone();
-    const deleteUser = useDeleteUser();
-    const createUser = useCreateUser();
-
-    // Apply filters to users
-    const filteredUsers = users.filter((user) => {
-        // Search filter
-        const searchMatch =
-            searchQuery === "" ||
-            user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            user.phone?.toLowerCase().includes(searchQuery.toLowerCase());
-
-        // Role filter
-        const roleMatch = roleFilter === "all" || user.role === roleFilter;
-
-        // Status filter
-        const statusMatch = statusFilter === "all" || user.status === statusFilter;
-
-        return searchMatch && roleMatch && statusMatch;
-    });
-
-    useEffect(() => {
-        if (selectedUser && isEditDialogOpen) {
-            setValue("role", selectedUser.role || "user");
-            setValue("status", selectedUser.status || "active");
-            setValue("shopId", selectedUser.shopId || "");
-            setValue("phone", selectedUser.phone || "");
-        }
-    }, [selectedUser, isEditDialogOpen, setValue]);
-
-    const onSubmit = async (values) => {
-        try {
-            if (selectedUser) {
-                // Update role if changed
-                if (values.role !== selectedUser.role) {
-                    await updateUserRole.mutateAsync({
-                        userId: selectedUser.$id,
-                        newRole: values.role,
-                    });
-                }
-
-                // Update status if changed
-                if (values.status !== selectedUser.status) {
-                    await updateUserStatus.mutateAsync({
-                        userId: selectedUser.$id,
-                        newStatus: values.status,
-                    });
-                }
-
-                // Update shop if changed
-                if (values.shopId !== selectedUser.shopId) {
-                    await updateUserShop.mutateAsync({
-                        userId: selectedUser.$id,
-                        shopId: values.shopId,
-                    });
-                }
-
-                // Update phone if changed
-                if (values.phone !== selectedUser.phone) {
-                    await updateUserPhone.mutateAsync({
-                        userId: selectedUser.$id,
-                        phone: values.phone,
-                    });
-                }
-
-                toast.success("User updated successfully");
-                setIsEditDialogOpen(false);
-                setSelectedUser(null);
-                reset();
-            }
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to update user");
-        }
-    };
-
-    const onCreateSubmit = async (values) => {
-        try {
-            await createUser.mutateAsync(values);
-            toast.success("User created successfully");
-            setIsCreateDialogOpen(false);
-            resetCreate();
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to create user");
-        }
-    };
-
-    const handleEdit = (user) => {
-        setSelectedUser(user);
-        setIsEditDialogOpen(true);
-    };
-
-    const handleDelete = async (userId) => {
-        try {
-            await deleteUser.mutateAsync(userId);
-            toast.success("User deleted successfully");
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to delete user");
-        }
-    };
-
-    const resetForm = () => {
-        reset();
-        setSelectedUser(null);
-    };
-
-    const getRoleIcon = (role) => {
-        const roleConfig = ROLES.find(r => r.value === role);
-        return roleConfig ? React.createElement(roleConfig.icon, { className: `h-4 w-4 ${roleConfig.color}` }) : <User className="h-4 w-4" />;
-    };
-
-    const getStatusIcon = (status) => {
-        const statusConfig = STATUSES.find(s => s.value === status);
-        return statusConfig ? React.createElement(statusConfig.icon, { className: `h-4 w-4 ${statusConfig.color}` }) : <UserCheck className="h-4 w-4" />;
-    };
-
-    const getRoleLabel = (role) => {
-        return ROLES.find(r => r.value === role)?.label || role;
-    };
-
-    const getStatusLabel = (status) => {
-        return STATUSES.find(s => s.value === status)?.label || status;
-    };
-
-    const canEditUser = (user) => {
-        if (!currentUser?.profile) return false;
-
-        const currentUserRole = currentUser.profile.role;
-        const targetUserRole = user.role;
-
-        // Super admin can edit everyone
-        if (currentUserRole === "superAdmin") return true;
-
-        // Admin can edit everyone except super admin
-        if (currentUserRole === "admin" && targetUserRole !== "superAdmin") return true;
-
-        // Manager can edit tailors, salesmen, and users
-        if (currentUserRole === "manager" &&
-            ["tailor", "salesman", "embroideryMan", "stoneMan", "user"].includes(targetUserRole)) {
-            return true;
-        }
-
-        return false;
-    };
-
-    const canDeleteUser = (user) => {
-        if (!currentUser?.profile) return false;
-
-        const currentUserRole = currentUser.profile.role;
-        const targetUserRole = user.role;
-
-        // Only super admin and admin can delete users
-        if (!["superAdmin", "admin"].includes(currentUserRole)) return false;
-
-        // Super admin can delete everyone except themselves
-        if (currentUserRole === "superAdmin" && user.$id !== currentUser.$id) return true;
-
-        // Admin can delete everyone except super admin and themselves
-        if (currentUserRole === "admin" &&
-            targetUserRole !== "superAdmin" &&
-            user.$id !== currentUser.$id) {
-            return true;
-        }
-
-        return false;
-    };
-
-    const canCreateUser = () => {
-        if (!currentUser?.profile) return false;
-        return ["superAdmin", "admin", "manager"].includes(currentUser.profile.role);
-    };
-
-    const hasActiveFilters = roleFilter !== "all" || statusFilter !== "all" || searchQuery !== "";
-
-    const clearFilters = () => {
-        setSearchQuery("");
-        setRoleFilter("all");
-        setStatusFilter("all");
-    };
-
-    return (
-        <PageContainer>
-            <div className="space-y-6">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            User Management
-                        </h1>
-                        <p className="text-muted-foreground mt-1">Manage all system users and their roles</p>
-                    </div>
-
-                    {canCreateUser() && (
-                        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button className="flex items-center gap-2">
-                                    <Plus className="h-4 w-4" />
-                                    Add New User
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[500px]">
-                                <DialogHeader>
-                                    <DialogTitle>Create New User</DialogTitle>
-                                    <DialogDescription>
-                                        Add a new user to the system
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <form onSubmit={handleCreateSubmit(onCreateSubmit)} className="space-y-4">
-                                    <div className="space-y-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="name">Full Name</Label>
-                                            <Controller
-                                                name="name"
-                                                control={createControl}
-                                                render={({ field }) => (
-                                                    <Input
-                                                        placeholder="Enter full name"
-                                                        {...field}
-                                                        className={createErrors.name ? "border-destructive" : ""}
-                                                    />
-                                                )}
-                                            />
-                                            {createErrors.name && (
-                                                <p className="text-destructive text-sm">{createErrors.name.message}</p>
-                                            )}
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="email">Email</Label>
-                                            <Controller
-                                                name="email"
-                                                control={createControl}
-                                                render={({ field }) => (
-                                                    <Input
-                                                        type="email"
-                                                        placeholder="Enter email address"
-                                                        {...field}
-                                                        className={createErrors.email ? "border-destructive" : ""}
-                                                    />
-                                                )}
-                                            />
-                                            {createErrors.email && (
-                                                <p className="text-destructive text-sm">{createErrors.email.message}</p>
-                                            )}
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="phone">Phone Number</Label>
-                                            <Controller
-                                                name="phone"
-                                                control={createControl}
-                                                render={({ field }) => (
-                                                    <Input
-                                                        placeholder="Enter phone number"
-                                                        {...field}
-                                                    />
-                                                )}
-                                            />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label>Role</Label>
-                                            <Controller
-                                                name="role"
-                                                control={createControl}
-                                                render={({ field }) => (
-                                                    <Select onValueChange={field.onChange} value={field.value}>
-                                                        <SelectTrigger className={createErrors.role ? "border-destructive" : ""}>
-                                                            <SelectValue placeholder="Select role" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {ROLES.map((role) => (
-                                                                <SelectItem key={role.value} value={role.value}>
-                                                                    <div className="flex items-center gap-2">
-                                                                        {React.createElement(role.icon, { className: `h-4 w-4 ${role.color}` })}
-                                                                        {role.label}
-                                                                    </div>
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                )}
-                                            />
-                                            {createErrors.role && (
-                                                <p className="text-destructive text-sm">{createErrors.role.message}</p>
-                                            )}
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label>Shop Assignment (Optional)</Label>
-                                            <Controller
-                                                name="shopId"
-                                                control={createControl}
-                                                render={({ field }) => (
-                                                    <Select onValueChange={field.onChange} value={field.value || undefined}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select shop" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value={undefined}>No shop</SelectItem>
-                                                            {shops?.map((shop) => (
-                                                                <SelectItem key={shop.$id} value={shop.$id}>
-                                                                    {shop.name}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                )}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <DialogFooter>
-                                        <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                                            Cancel
-                                        </Button>
-                                        <Button type="submit">Create User</Button>
-                                    </DialogFooter>
-                                </form>
-                            </DialogContent>
-                        </Dialog>
-                    )}
-                </div>
-
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-0 shadow-lg">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium flex items-center gap-2">
-                                <User className="h-4 w-4" />
-                                Total Users
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold">{users.length}</div>
-                            <p className="text-xs text-muted-foreground mt-1">All system users</p>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-0 shadow-lg">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium flex items-center gap-2">
-                                <UserCheck className="h-4 w-4" />
-                                Active Users
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold">{users.filter(u => u.status === "active").length}</div>
-                            <p className="text-xs text-muted-foreground mt-1">Currently active</p>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 border-0 shadow-lg">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium flex items-center gap-2">
-                                <Shield className="h-4 w-4" />
-                                Admin Users
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold">{users.filter(u => ["superAdmin", "admin"].includes(u.role)).length}</div>
-                            <p className="text-xs text-muted-foreground mt-1">Admin privileges</p>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-0 shadow-lg">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium flex items-center gap-2">
-                                <Settings className="h-4 w-4" />
-                                Staff Users
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold">{users.filter(u => ["manager", "tailor", "salesman", "embroideryMan", "stoneMan"].includes(u.role)).length}</div>
-                            <p className="text-xs text-muted-foreground mt-1">Team members</p>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Filters */}
-                <Card className="shadow-lg border-0">
-                    <CardHeader>
-                        <div className="flex flex-col lg:flex-row gap-4">
-                            <div className="flex-1">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                                    <Input
-                                        placeholder="Search users by name, email, or phone..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="pl-10"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex flex-col sm:flex-row gap-3">
-                                <Select value={roleFilter} onValueChange={setRoleFilter}>
-                                    <SelectTrigger className="w-full sm:w-[180px]">
-                                        <Filter className="h-4 w-4 mr-2" />
-                                        <SelectValue placeholder="Filter by role" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Roles</SelectItem>
-                                        {ROLES.map((role) => (
-                                            <SelectItem key={role.value} value={role.value}>
-                                                {role.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                    <SelectTrigger className="w-full sm:w-[180px]">
-                                        <Filter className="h-4 w-4 mr-2" />
-                                        <SelectValue placeholder="Filter by status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Status</SelectItem>
-                                        {STATUSES.map((status) => (
-                                            <SelectItem key={status.value} value={status.value}>
-                                                {status.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                {hasActiveFilters && (
-                                    <Button
-                                        variant="outline"
-                                        onClick={clearFilters}
-                                        className="flex items-center gap-2"
-                                    >
-                                        <X className="h-4 w-4" />
-                                        Clear Filters
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-                    </CardHeader>
-
-                    <CardContent>
-                        {isLoading ? (
-                            <div className="flex justify-center items-center py-12">
-                                <Loader2 className="h-8 w-8 animate-spin mr-2" />
-                                <span>Loading users...</span>
-                            </div>
-                        ) : filteredUsers.length === 0 ? (
-                            <div className="text-center py-12">
-                                <div className="text-muted-foreground mb-4 text-lg">
-                                    {hasActiveFilters ? "No users match your filters" : "No users found"}
-                                </div>
-                                {hasActiveFilters && (
-                                    <Button onClick={clearFilters} variant="outline">
-                                        Clear Filters
-                                    </Button>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="rounded-lg border shadow-sm">
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                        <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
-                                            <TableRow>
-                                                <TableHead>User</TableHead>
-                                                <TableHead>Contact</TableHead>
-                                                <TableHead>Role</TableHead>
-                                                <TableHead>Status</TableHead>
-                                                <TableHead>Shop</TableHead>
-                                                <TableHead>Joined</TableHead>
-                                                <TableHead className="text-right">Actions</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {filteredUsers.map((user) => (
-                                                <TableRow key={user.$id} className="hover:bg-muted/50">
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="relative h-10 w-10 flex-shrink-0">
-                                                                <Image
-                                                                    src={user.avatar || `/api/placeholder/40/40`}
-                                                                    alt={user.name}
-                                                                    fill
-                                                                    className="rounded-full object-cover"
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <div className="font-semibold">{user.name}</div>
-                                                                <div className="text-sm text-muted-foreground">ID: {user.userId}</div>
-                                                            </div>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="space-y-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <Mail className="h-4 w-4 text-muted-foreground" />
-                                                                <span className="text-sm">{user.email}</span>
-                                                            </div>
-                                                            {user.phone && (
-                                                                <div className="flex items-center gap-2">
-                                                                    <Phone className="h-4 w-4 text-muted-foreground" />
-                                                                    <span className="text-sm">{user.phone}</span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="outline" className="flex items-center gap-1">
-                                                            {getRoleIcon(user.role)}
-                                                            {getRoleLabel(user.role)}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge
-                                                            variant={user.status === "active" ? "default" : "secondary"}
-                                                            className="flex items-center gap-1"
-                                                        >
-                                                            {getStatusIcon(user.status)}
-                                                            {getStatusLabel(user.status)}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {user.shopId ? (
-                                                            <Badge variant="outline">
-                                                                {shops?.find(s => s.$id === user.shopId)?.name || "Shop"}
-                                                            </Badge>
-                                                        ) : (
-                                                            <span className="text-muted-foreground text-sm">No shop</span>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                            <Calendar className="h-4 w-4" />
-                                                            {new Date(user.$createdAt).toLocaleDateString()}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <div className="flex justify-end gap-2">
-                                                            {canEditUser(user) && (
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => handleEdit(user)}
-                                                                    className="h-8 w-8 p-0"
-                                                                    title="Edit user"
-                                                                >
-                                                                    <Edit2 className="h-4 w-4" />
-                                                                </Button>
-                                                            )}
-                                                            {canDeleteUser(user) && (
-                                                                <AlertDialog>
-                                                                    <AlertDialogTrigger asChild>
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            size="sm"
-                                                                            className="h-8 w-8 p-0 text-destructive"
-                                                                            title="Delete user"
-                                                                        >
-                                                                            <Trash2 className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </AlertDialogTrigger>
-                                                                    <AlertDialogContent>
-                                                                        <AlertDialogHeader>
-                                                                            <AlertDialogTitle>Delete User?</AlertDialogTitle>
-                                                                            <AlertDialogDescription>
-                                                                                This will delete user "{user.name}" from the system. This action cannot be undone.
-                                                                            </AlertDialogDescription>
-                                                                        </AlertDialogHeader>
-                                                                        <AlertDialogFooter>
-                                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                            <AlertDialogAction
-                                                                                onClick={() => handleDelete(user.$id)}
-                                                                                className="bg-destructive hover:bg-destructive/90"
-                                                                            >
-                                                                                Delete
-                                                                            </AlertDialogAction>
-                                                                        </AlertDialogFooter>
-                                                                    </AlertDialogContent>
-                                                                </AlertDialog>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Edit User Dialog */}
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                        <DialogTitle>Edit User</DialogTitle>
-                        <DialogDescription>
-                            Update user role, status, and shop assignment
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    {selectedUser && (
-                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                            <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
-                                <div className="relative h-12 w-12 flex-shrink-0">
-                                    <Image
-                                        src={selectedUser.avatar || `/api/placeholder/48/48`}
-                                        alt={selectedUser.name}
-                                        fill
-                                        className="rounded-full object-cover"
-                                    />
-                                </div>
-                                <div>
-                                    <div className="font-semibold">{selectedUser.name}</div>
-                                    <div className="text-sm text-muted-foreground">{selectedUser.email}</div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label>Role</Label>
-                                    <Controller
-                                        name="role"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <Select onValueChange={field.onChange} value={field.value}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select role" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {ROLES.map((role) => (
-                                                        <SelectItem key={role.value} value={role.value}>
-                                                            <div className="flex items-center gap-2">
-                                                                {React.createElement(role.icon, { className: `h-4 w-4 ${role.color}` })}
-                                                                {role.label}
-                                                            </div>
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        )}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Phone Number</Label>
-                                    <Controller
-                                        name="phone"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <Input placeholder="Enter phone number" {...field} />
-                                        )}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Status</Label>
-                                    <Controller
-                                        name="status"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <Select onValueChange={field.onChange} value={field.value}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select status" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {STATUSES.map((status) => (
-                                                        <SelectItem key={status.value} value={status.value}>
-                                                            <div className="flex items-center gap-2">
-                                                                {React.createElement(status.icon, { className: `h-4 w-4 ${status.color}` })}
-                                                                {status.label}
-                                                            </div>
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        )}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Shop Assignment (Optional)</Label>
-                                    <Controller
-                                        name="shopId"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <Select onValueChange={field.onChange} value={field.value || undefined}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select shop" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value={undefined}>No shop</SelectItem>
-                                                    {shops?.map((shop) => (
-                                                        <SelectItem key={shop.$id} value={shop.$id}>
-                                                            {shop.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        )}
-                                    />
-                                </div>
-                            </div>
-
-                            <DialogFooter>
-                                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                                    Cancel
-                                </Button>
-                                <Button type="submit">Save Changes</Button>
-                            </DialogFooter>
-                        </form>
-                    )}
-                </DialogContent>
-            </Dialog>
-        </PageContainer>
-    );
+  return (
+    <AdminAccess>
+      <UserManagementContent />
+    </AdminAccess>
+  );
 }

@@ -1,4 +1,4 @@
-// app/sign-in/page.jsx - Premium Animated Sign In Page
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -16,8 +16,12 @@ export default function SignInPage() {
   const [error, setError] = useState(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { loginWithGoogle, isAuthenticated, canAccessDashboard, clearError } =
-    useAuthStore();
+
+  // ✅ useAuth hook থেকে loginWithGoogle নিন
+  const { loginWithGoogle } = useAuthStore();
+
+  // useAuthStore থেকে শুধুমাত্র state-related values নিন
+  const { isAuthenticated, canAccessDashboard, clearError } = useAuthStore();
 
   // Check for URL errors
   useEffect(() => {
@@ -39,10 +43,11 @@ export default function SignInPage() {
   }, [isAuthenticated, canAccessDashboard, router]);
 
   const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    setError(null);
+    clearError();
+
     try {
-      setIsLoading(true);
-      setError(null);
-      clearError();
       await loginWithGoogle();
     } catch (error) {
       setError(error.message);
@@ -69,11 +74,11 @@ export default function SignInPage() {
           className="text-center mb-4"
         >
           <div className="mx-auto h-20 w-20   flex items-center justify-center mb-2">
-           <Image
+            <Image
               src="/logo.png"
               alt="Abdul Raheem Tailoring"
               width={48}
-              height={48} 
+              height={48}
               className="w-12 h-12 rounded-full shadow-lg"
             />
           </div>

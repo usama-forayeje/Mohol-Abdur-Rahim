@@ -1,223 +1,217 @@
-import { databases, account } from "@/appwrite/appwrite";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { ID, Query } from "appwrite";
 import { useUserStore } from "@/store/user-store";
+import { databases } from "@/appwrite/appwrite";
 
 const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
-const COLLECTION_ID = process.env.NEXT_PUBLIC_APPWRITE_USERS_COLLECTION_ID;
+const USERS_COLLECTION_ID = process.env.NEXT_PUBLIC_APPWRITE_USERS_COLLECTION_ID;
+const USER_SHOPS_COLLECTION_ID = process.env.NEXT_PUBLIC_APPWRITE_USER_SHOPS_COLLECTION_ID;
+const SHOPS_COLLECTION_ID = process.env.NEXT_PUBLIC_APPWRITE_SHOPS_COLLECTION_ID;
+
+const debugLog = (message, data = null) => {
+  console.log(`🟢 [USER-SERVICE] ${message}`, data || "");
+};
 
 export const userService = {
-  // Get all users
-  async getUsers() {
+  async getUsers(options = {}) {
     try {
+      const queries = [
+        Query.orderDesc("$createdAt"),
+        Query.limit(options.limit || 100),
+        Query.offset(options.offset || 0),
+      ];
+
       const response = await databases.listDocuments(
         DATABASE_ID,
-        COLLECTION_ID,
-        [Query.orderDesc("$createdAt"), Query.limit(1000)]
+        USERS_COLLECTION_ID,
+        queries
       );
+
+      debugLog("Fetched users:", response.documents.length);
       return response.documents;
     } catch (error) {
       console.error("Error fetching users:", error);
-      throw error;
+      throw new Error("Failed to fetch users. Please try again.");
     }
   },
 
-  // Update user role
-  async updateUserRole(userId, newRole) {
+  async getUserById(userId) {
     try {
-      return await databases.updateDocument(
+      if (!userId) throw new Error("User ID is required");
+
+      const user = await databases.getDocument(
         DATABASE_ID,
-        COLLECTION_ID,
-        userId,
-        {
-          role: newRole,
-        }
+        USERS_COLLECTION_ID,
+        userId
       );
+
+      debugLog(`Fetched user ${userId}`);
+      return user;
     } catch (error) {
-      console.error("Error updating user role:", error);
-      throw error;
+      if (error.code === 404) return null;
+      console.error(`Error fetching user ${userId}:`, error);
+      throw new Error("Failed to fetch user details.");
     }
   },
 
-  // Update user status
-  async updateUserStatus(userId, newStatus) {
+  async getUsersByShopId(shopId, options = {}) {
     try {
-      return await databases.updateDocument(
+      if (!shopId) throw new Error("Shop ID is required");
+
+      const userShops = await databases.listDocuments(
         DATABASE_ID,
-        COLLECTION_ID,
-        userId,
-        {
-          status: newStatus,
-        }
+        USER_SHOPS_COLLECTION_ID,
+        [
+          Query.equal("shopId", shopId),
+          Query.limit(options.limit || 1000),
+          Query.offset(options.offset || 0),
+        ]
       );
+
+      const users = await Promise.all(
+        userShops.documents.map(async (userShop) => {
+          const user = await this.getUserById(userShop.userId?.$id || userShop.userId);
+          return user
+            ? {
+                ...user,
+                shopRole: userShop.role,
+                shopStatus: userShop.status,
+              }
+            : null;
+        })
+      );
+
+      debugLog(`Fetched users for shop ${shopId}:`, users.length);
+      return users.filter((u) => u !== null);
     } catch (error) {
-      console.error("Error updating user status:", error);
-      throw error;
+      console.error(`Error fetching users for shop ${shopId}:`, error);
+      throw new Error("Failed to fetch users by shop.");
     }
   },
 
-  // Update user shop
-  async updateUserShop(userId, shopId) {
-    try {
-      return await databases.updateDocument(
-        DATABASE_ID,
-        COLLECTION_ID,
-        userId,
-        {
-          shopId: shopId || null,
-        }
-      );
-    } catch (error) {
-      console.error("Error updating user shop:", error);
-      throw error;
-    }
-  },
-
-  // Update user phone
-  async updateUserPhone(userId, phone) {
-    try {
-      return await databases.updateDocument(
-        DATABASE_ID,
-        COLLECTION_ID,
-        userId,
-        {
-          phone: phone || "",
-        }
-      );
-    } catch (error) {
-      console.error("Error updating user phone:", error);
-      throw error;
-    }
-  },
-
-  // Create user
   async createUser(userData) {
     try {
-      // Generate a unique ID for the user
-      const userId = ID.unique();
+      if (!userData.email || !userData.name) {
+        throw new Error("Email and name are required to create a user");
+      }
+
+      const documentId = userData.$id || ID.unique();
+
+      const userDocument = {
+        name: userData.name,
+        email: userData.email,
+        phone: userData.phone || "",
+        avatar: userData.avatar || null,
+        status: userData.status || "active",
+      };
+
+      const newUser = await databases.createDocument(
+        DATABASE_ID,
+        USERS_COLLECTION_ID,
+        documentId,
+        userDocument
+      );
+
+      debugLog("Created new user:", newUser.$id);
+
+      if (userData.shopId) {
+        await this.assignUserToShop(
+          newUser.$id,
+          userData.shopId,
+          userData.role || "user"
+        );
+      }
+
+      return newUser;
+    } catch (error) {
+      console.error("Error creating user:", error);
+      if (error.code === 409) throw new Error("A user with this email already exists.");
+      throw new Error("Failed to create user. Please try again.");
+    }
+  },
+
+  async assignUserToShop(userId, shopId, role = "user") {
+    try {
+      // Verify shop exists
+      await databases.getDocument(DATABASE_ID, SHOPS_COLLECTION_ID, shopId);
+
+      const existing = await databases.listDocuments(
+        DATABASE_ID,
+        USER_SHOPS_COLLECTION_ID,
+        [Query.equal("userId", userId), Query.equal("shopId", shopId)]
+      );
+
+      if (existing.documents.length > 0) {
+        return await databases.updateDocument(
+          DATABASE_ID,
+          USER_SHOPS_COLLECTION_ID,
+          existing.documents[0].$id,
+          { role, status: "active" }
+        );
+      }
 
       return await databases.createDocument(
         DATABASE_ID,
-        COLLECTION_ID,
-        userId,
+        USER_SHOPS_COLLECTION_ID,
+        ID.unique(),
         {
-          name: userData.name,
-          email: userData.email,
-          role: userData.role,
-          phone: userData.phone || "",
-          shopId: userData.shopId || null,
-          status: "active", // Default status
-          userId: userId, // Custom user ID field
+          userId: userId,
+          shopId: shopId,
+          role,
+          status: "active",
         }
       );
     } catch (error) {
-      console.error("Error creating user:", error);
-      throw error;
+      console.error("Error assigning user to shop:", error);
+      throw new Error("Failed to assign user to shop");
     }
   },
 
-  // Delete user (from database only, not from auth)
-  async deleteUser(userId) {
+  async getUserShops(userId) {
     try {
-      return await databases.deleteDocument(DATABASE_ID, COLLECTION_ID, userId);
+      if (!userId) throw new Error("User ID is required");
+
+      const userShops = await databases.listDocuments(
+        DATABASE_ID,
+        USER_SHOPS_COLLECTION_ID,
+        [Query.equal("userId", userId)]
+      );
+
+      debugLog(`Fetched ${userShops.documents.length} shops for user ${userId}`);
+      return userShops.documents;
     } catch (error) {
-      console.error("Error deleting user:", error);
-      throw error;
+      console.error(`Error fetching shops for user ${userId}:`, error);
+      throw new Error("Failed to fetch user shops.");
     }
   },
 };
 
-// Fetch users
-export function useUsers() {
+export const userKeys = {
+  all: ["users"],
+  lists: () => [...userKeys.all, "list"],
+  list: (filters) => [...userKeys.lists(), filters],
+  details: () => [...userKeys.all, "detail"],
+  detail: (id) => [...userKeys.details(), id],
+  byShop: (shopId) => [...userKeys.all, "shop", shopId],
+  userShops: (userId) => [...userKeys.all, "shops", userId],
+};
+
+export function useUsers(options = {}) {
+  const setUsers = useUserStore((state) => state.setUsers);
+
   return useQuery({
-    queryKey: ["users"],
-    queryFn: async () => {
-      const data = await userService.getUsers();
-      useUserStore.getState().setUsers(data);
-      return data;
-    },
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    queryKey: userKeys.list(options),
+    queryFn: () => userService.getUsers(options),
+    onSuccess: (data) => setUsers(data),
+    staleTime: 2 * 60 * 1000,
   });
 }
 
-// Update user role
-export function useUpdateUserRole() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ userId, newRole }) =>
-      userService.updateUserRole(userId, newRole),
-    onSuccess: (updatedUser) => {
-      useUserStore.getState().updateUser(updatedUser);
-      queryClient.invalidateQueries(["users"]);
-    },
-  });
-}
-
-// Update user status
-export function useUpdateUserStatus() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ userId, newStatus }) =>
-      userService.updateUserStatus(userId, newStatus),
-    onSuccess: (updatedUser) => {
-      useUserStore.getState().updateUser(updatedUser);
-      queryClient.invalidateQueries(["users"]);
-    },
-  });
-}
-
-// Update user shop
-export function useUpdateUserShop() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ userId, shopId }) =>
-      userService.updateUserShop(userId, shopId),
-    onSuccess: (updatedUser) => {
-      useUserStore.getState().updateUser(updatedUser);
-      queryClient.invalidateQueries(["users"]);
-    },
-  });
-}
-
-// Update user phone
-export function useUpdateUserPhone() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ userId, phone }) =>
-      userService.updateUserPhone(userId, phone),
-    onSuccess: (updatedUser) => {
-      useUserStore.getState().updateUser(updatedUser);
-      queryClient.invalidateQueries(["users"]);
-    },
-  });
-}
-
-// Create user
-export function useCreateUser() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (userData) => userService.createUser(userData),
-    onSuccess: (newUser) => {
-      useUserStore.getState().addUser(newUser);
-      queryClient.invalidateQueries(["users"]);
-    },
-  });
-}
-
-// Delete user
-export function useDeleteUser() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (userId) => userService.deleteUser(userId),
-    onSuccess: (_, userId) => {
-      useUserStore.getState().removeUser(userId);
-      queryClient.invalidateQueries(["users"]);
-    },
+export function useUsersByShopId(shopId, options = {}) {
+  return useQuery({
+    queryKey: userKeys.byShop(shopId),
+    queryFn: () => userService.getUsersByShopId(shopId, options),
+    enabled: !!shopId,
+    staleTime: 2 * 60 * 1000,
   });
 }
