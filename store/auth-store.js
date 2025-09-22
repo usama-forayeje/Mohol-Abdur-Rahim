@@ -29,31 +29,41 @@ export const useAuthStore = create(
 
         // Extract shop IDs from user shops
         const shopIds = userShops
-          .filter(us => us.status === "active")
-          .map(us => {
-            if (typeof us.shopId === 'string') return us.shopId;
+          .filter((us) => us.status === "active")
+          .map((us) => {
+            if (typeof us.shopId === "string") return us.shopId;
             if (us.shopId?.$id) return us.shopId.$id;
             if (Array.isArray(us.shopId) && us.shopId.length > 0) {
-              return typeof us.shopId[0] === 'string' ? us.shopId[0] : us.shopId[0].$id;
+              return typeof us.shopId[0] === "string"
+                ? us.shopId[0]
+                : us.shopId[0].$id;
             }
             return null;
           })
           .filter(Boolean);
 
         // Get user's highest role
-        const roles = userShops.map(us => us.role).filter(Boolean);
-        const userRole = roles.includes(ROLES.SUPER_ADMIN) ? ROLES.SUPER_ADMIN :
-                        roles.includes(ROLES.ADMIN) ? ROLES.ADMIN :
-                        roles.includes(ROLES.MANAGER) ? ROLES.MANAGER :
-                        roles.includes(ROLES.TAILOR) ? ROLES.TAILOR :
-                        roles.includes(ROLES.SALESMAN) ? ROLES.SALESMAN :
-                        roles.includes(ROLES.EMBROIDERY_MAN) ? ROLES.EMBROIDERY_MAN :
-                        roles.includes(ROLES.STONE_MAN) ? ROLES.STONE_MAN : ROLES.USER;
+        const roles = userShops.map((us) => us.role).filter(Boolean);
+        const userRole = roles.includes(ROLES.SUPER_ADMIN)
+          ? ROLES.SUPER_ADMIN
+          : roles.includes(ROLES.ADMIN)
+          ? ROLES.ADMIN
+          : roles.includes(ROLES.MANAGER)
+          ? ROLES.MANAGER
+          : roles.includes(ROLES.TAILOR)
+          ? ROLES.TAILOR
+          : roles.includes(ROLES.SALESMAN)
+          ? ROLES.SALESMAN
+          : roles.includes(ROLES.EMBROIDERY_MAN)
+          ? ROLES.EMBROIDERY_MAN
+          : roles.includes(ROLES.STONE_MAN)
+          ? ROLES.STONE_MAN
+          : ROLES.USER;
 
         // Update user profile with correct role
         const updatedProfile = {
           ...userProfile,
-          role: userRole
+          role: userRole,
         };
 
         // Set first shop as selected if available
@@ -74,7 +84,10 @@ export const useAuthStore = create(
         if (firstShopId) {
           localStorage.setItem("selectedShopId", firstShopId);
         }
-        localStorage.setItem("viewMode", firstShopId ? "single-shop" : "all-shops");
+        localStorage.setItem(
+          "viewMode",
+          firstShopId ? "single-shop" : "all-shops"
+        );
       },
 
       clearAuth: () => {
@@ -154,20 +167,23 @@ export const useAuthStore = create(
 
       getUserRole: () => {
         const { userProfile, selectedShopId, userShops } = get();
-        
+
         // If user has a specific shop selected, find role for that shop
         if (selectedShopId && userShops.length > 0) {
-          const userShop = userShops.find(us => {
-            const shopId = typeof us.shopId === 'string' ? us.shopId :
-                          us.shopId?.$id || (Array.isArray(us.shopId) && us.shopId[0]?.$id);
+          const userShop = userShops.find((us) => {
+            const shopId =
+              typeof us.shopId === "string"
+                ? us.shopId
+                : us.shopId?.$id ||
+                  (Array.isArray(us.shopId) && us.shopId[0]?.$id);
             return shopId === selectedShopId && us.status === "active";
           });
-          
+
           if (userShop?.role) {
             return userShop.role;
           }
         }
-        
+
         // Otherwise return the highest role from user profile
         return userProfile?.role || ROLES.USER;
       },
@@ -175,26 +191,44 @@ export const useAuthStore = create(
       hasPermission: (permission) => {
         const { getUserRole } = get();
         const role = getUserRole();
-        
+
         // Define permissions for each role
         const permissions = {
           [ROLES.SUPER_ADMIN]: [
-            "VIEW_REPORTS", "CREATE_ORDERS", "VIEW_CUSTOMERS", "VIEW_ALL_ORDERS", 
-            "MANAGE_FABRICS", "MANAGE_USERS", "MANAGE_SHOPS", "VIEW_FINANCE"
+            "VIEW_REPORTS",
+            "CREATE_ORDERS",
+            "VIEW_CUSTOMERS",
+            "VIEW_ALL_ORDERS",
+            "MANAGE_FABRICS",
+            "MANAGE_USERS",
+            "MANAGE_SHOPS",
+            "VIEW_FINANCE",
+            "SELL_FABRICS", // ✅ এটা যোগ করলাম
           ],
           [ROLES.ADMIN]: [
-            "VIEW_REPORTS", "CREATE_ORDERS", "VIEW_CUSTOMERS", "VIEW_ALL_ORDERS", 
-            "MANAGE_FABRICS", "MANAGE_USERS", "VIEW_FINANCE"
+            "VIEW_REPORTS",
+            "CREATE_ORDERS",
+            "VIEW_CUSTOMERS",
+            "VIEW_ALL_ORDERS",
+            "MANAGE_FABRICS",
+            "MANAGE_USERS",
+            "VIEW_FINANCE",
+            "SELL_FABRICS", // ✅ এটা যোগ করলাম
           ],
           [ROLES.MANAGER]: [
-            "VIEW_REPORTS", "CREATE_ORDERS", "VIEW_CUSTOMERS", "VIEW_ALL_ORDERS", 
-            "MANAGE_FABRICS", "VIEW_FINANCE"
+            "VIEW_REPORTS",
+            "CREATE_ORDERS",
+            "VIEW_CUSTOMERS",
+            "VIEW_ALL_ORDERS",
+            "MANAGE_FABRICS",
+            "VIEW_FINANCE",
+            "SELL_FABRICS", // ✅ এটা যোগ করলাম
           ],
           [ROLES.SALESMAN]: ["CREATE_ORDERS", "VIEW_CUSTOMERS", "SELL_FABRICS"],
           [ROLES.TAILOR]: ["VIEW_OWN_ORDERS", "UPDATE_ORDER_STATUS"],
           [ROLES.EMBROIDERY_MAN]: ["VIEW_OWN_ORDERS", "UPDATE_ORDER_STATUS"],
           [ROLES.STONE_MAN]: ["VIEW_OWN_ORDERS", "UPDATE_ORDER_STATUS"],
-          [ROLES.USER]: []
+          [ROLES.USER]: [],
         };
 
         return permissions[role]?.includes(permission) || false;
@@ -203,29 +237,31 @@ export const useAuthStore = create(
       // Get accessible shops for the current user
       getAccessibleShops: (allShops = []) => {
         const { userProfile, userShops } = get();
-        
+
         if (!userProfile) return [];
-        
+
         // SuperAdmin can access all shops
         if (userProfile.role === ROLES.SUPER_ADMIN) {
           return allShops;
         }
-        
+
         // For other users, filter by their assigned shops
         const userShopIds = userShops
-          .filter(us => us.status === "active")
-          .map(us => {
-            if (typeof us.shopId === 'string') return us.shopId;
+          .filter((us) => us.status === "active")
+          .map((us) => {
+            if (typeof us.shopId === "string") return us.shopId;
             if (us.shopId?.$id) return us.shopId.$id;
             if (Array.isArray(us.shopId) && us.shopId.length > 0) {
-              return typeof us.shopId[0] === 'string' ? us.shopId[0] : us.shopId[0].$id;
+              return typeof us.shopId[0] === "string"
+                ? us.shopId[0]
+                : us.shopId[0].$id;
             }
             return null;
           })
           .filter(Boolean);
 
-        return allShops.filter(shop => userShopIds.includes(shop.$id));
-      }
+        return allShops.filter((shop) => userShopIds.includes(shop.$id));
+      },
     }),
     {
       name: "auth-storage",

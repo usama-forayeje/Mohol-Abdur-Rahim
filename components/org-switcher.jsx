@@ -160,7 +160,7 @@ export function OrgSwitcher() {
                 }
               </div>
               <div className="flex flex-col gap-0.5 leading-none text-left">
-                <span className="font-semibold truncate">আব্দুর রহিম টেইলার্স</span>
+                <span className="font-semibold truncate py-1">মহল আব্দুর রহীম</span>
                 <span className="text-xs text-sidebar-foreground/70 truncate">
                   {isViewingAll
                     ? `সব দোকান (${accessibleShops.length})`
