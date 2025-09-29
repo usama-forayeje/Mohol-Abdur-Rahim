@@ -1,6 +1,7 @@
 import { databases, ID, Query } from "@/appwrite/appwrite";
 import { useFabricStore } from "@/store/fabric-store";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { fabricService } from "@/services/fabric-service";
 
 const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
 const FABRIC_SALES_COLLECTION_ID =
@@ -31,7 +32,8 @@ export const fabricSalesService = {
 
       // Two-way relationships - Use arrays
       if (saleData.shopId) transactionData.shopId = [saleData.shopId];
-      if (saleData.customerId) transactionData.customerId = [saleData.customerId];
+      if (saleData.customerId)
+        transactionData.customerId = [saleData.customerId];
       if (saleData.soldBy) transactionData.createdBy = saleData.soldBy;
 
       const transaction = await databases.createDocument(
@@ -245,21 +247,37 @@ export const fabricSalesKeys = {
 };
 
 export function useCreateFabricSale() {
-  const queryClient = useQueryClient();
-  const updateFabricStock = useFabricStore((state) => state.updateFabricStock);
+   const queryClient = useQueryClient();
+   const updateFabricStock = useFabricStore((state) => state.updateFabricStock);
+   const refreshFabrics = useFabricStore((state) => state.refreshFabrics);
 
-  return useMutation({
-    mutationFn: fabricSalesService.createFabricSale,
-    onSuccess: (data, variables) => {
-      variables.items.forEach((item) => {
-        updateFabricStock(item.fabricId, -item.quantity);
-      });
+   return useMutation({
+     mutationFn: fabricSalesService.createFabricSale,
+     onSuccess: async (data, variables) => {
+       // Update stock in the fabric store for real-time UI updates
+       variables.items.forEach((item) => {
+         updateFabricStock(item.fabricId, -item.quantity);
+       });
 
-      queryClient.invalidateQueries({ queryKey: fabricSalesKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: ["fabrics"] });
-    },
-  });
-}
+       // Refresh fabrics data from database to ensure consistency
+       try {
+         const updatedFabrics = await fabricService.getFabrics();
+         refreshFabrics(updatedFabrics);
+       } catch (error) {
+         console.error("Error refreshing fabrics after sale:", error);
+       }
+
+       // Invalidate queries to refresh data
+       queryClient.invalidateQueries({ queryKey: fabricSalesKeys.lists() });
+       queryClient.invalidateQueries({ queryKey: ["fabrics"] });
+       queryClient.invalidateQueries({ queryKey: ["fabric-sales"] });
+     },
+     onError: (error, variables) => {
+       console.error("❌ Fabric sale mutation failed:", error);
+       // Optionally revert optimistic updates here
+     },
+   });
+ }
 
 export function useFabricSales(shopId) {
   return useQuery({
