@@ -15,16 +15,23 @@ export const useFabricStore = create((set) => ({
     })),
   deleteFabricFromStore: (id) => set((state) => ({ fabrics: state.fabrics.filter((f) => f.$id !== id) })),
 
-  // Fabric stock  function
+  // Fabric stock function
   updateFabricStock: (fabricId, quantityChange) =>
     set((state) => ({
       fabrics: state.fabrics.map((fabric) =>
         fabric.$id === fabricId
           ? {
               ...fabric,
-              stock_quantity: fabric.stock_quantity + quantityChange,
+              stock_quantity: Math.max(0, fabric.stock_quantity + quantityChange),
             }
           : fabric,
       ),
     })),
+
+  // Refresh fabrics from database
+  refreshFabrics: (fabrics) => set({ fabrics }),
+
+  // Get fabric by ID
+  getFabricById: (fabricId) => (state) =>
+    state.fabrics.find((fabric) => fabric.$id === fabricId),
 }))
