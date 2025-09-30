@@ -7,7 +7,7 @@ import { z } from "zod"
 import { useAuthStore } from "@/store/auth-store"
 import { useShopStore } from "@/store/shop-store"
 import { useFabrics } from "@/services/fabric-service"
-import { useCreateFabricSale } from "@/services/fabric-sales-service"
+import { useCreateFabricSale, useUpdateFabricSale } from "@/services/fabric-sales-service"
 import { useCustomers } from "@/services/customer-service"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -36,40 +36,56 @@ import {
     Smartphone,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { toast } from "react-hot-toast"
+import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 
 const fabricSaleSchema = z.object({
-    saleItems: z.array(z.object({
-        fabricId: z.string().min(1, "ফ্যাব্রিক নির্বাচন করুন"),
-        quantity: z.number().min(0.1, "পরিমাণ ০.১ এর কম হতে পারে না"),
-        unitPrice: z.union([z.string(), z.number()]).transform((val) => {
-            if (val === "" || val === null || val === undefined) return 0
-            return Number.parseFloat(val) || 0
-        }).refine((val) => val >= 0, "দর ০ এর কম হতে পারে না"),
-    })).min(1, "কমপক্ষে একটি ফ্যাব্রিক যোগ করুন"),
+    saleItems: z
+        .array(
+            z.object({
+                fabricId: z.string().min(1, "ফ্যাব্রিক নির্বাচন করুন"),
+                quantity: z.number().min(0.1, "পরিমাণ ০.১ এর কম হতে পারে না"),
+                unitPrice: z
+                    .union([z.string(), z.number()])
+                    .transform((val) => {
+                        if (val === "" || val === null || val === undefined) return 0
+                        return Number.parseFloat(val) || 0
+                    })
+                    .refine((val) => val >= 0, "দর ০ এর কম হতে পারে না"),
+            }),
+        )
+        .min(1, "কমপক্ষে একটি ফ্যাব্রিক যোগ করুন"),
     customerId: z.string().optional(),
     paymentMethod: z.enum(["cash", "card", "online"]),
-    paymentAmount: z.union([z.string(), z.number()]).transform((val) => {
-        if (val === "" || val === null || val === undefined) return 0
-        return Number.parseFloat(val) || 0
-    }).refine((val) => val >= 0, "পরিশোধিত Amount ০ এর কম হতে পারে না"),
-    discountAmount: z.union([z.string(), z.number()]).transform((val) => {
-        if (val === "" || val === null || val === undefined) return 0
-        return Number.parseFloat(val) || 0
-    }).refine((val) => val >= 0, "ডিসকাউন্ট ০ এর কম হতে পারে না").optional(),
+    paymentAmount: z
+        .union([z.string(), z.number()])
+        .transform((val) => {
+            if (val === "" || val === null || val === undefined) return 0
+            return Number.parseFloat(val) || 0
+        })
+        .refine((val) => val >= 0, "পরিশোধিত Amount ০ এর কম হতে পারে না"),
+    discountAmount: z
+        .union([z.string(), z.number()])
+        .transform((val) => {
+            if (val === "" || val === null || val === undefined) return 0
+            return Number.parseFloat(val) || 0
+        })
+        .refine((val) => val >= 0, "ডিসকাউন্ট ০ এর কম হতে পারে না")
+        .optional(),
     notes: z.string().optional(),
 })
 
-export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) {
+export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess, onCancel, saleId }) {
     const { userProfile, selectedShopId } = useAuthStore()
     const { shops } = useShopStore()
     const { data: fabrics, isLoading: fabricsLoading } = useFabrics()
     const { data: customers, isLoading: customersLoading } = useCustomers()
     const createFabricSale = useCreateFabricSale()
+    const updateFabricSale = useUpdateFabricSale()
     const router = useRouter()
 
     const [showSuccess, setShowSuccess] = useState(false)
+    const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     const form = useForm({
@@ -84,7 +100,12 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
         },
     })
 
-    const { fields: saleItems, append, remove } = useFieldArray({
+    const {
+        fields: saleItems,
+        append,
+        remove,
+        replace,
+    } = useFieldArray({
         control: form.control,
         name: "saleItems",
     })
@@ -93,7 +114,6 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
     const watchedPaymentAmount = form.watch("paymentAmount")
     const watchedDiscountAmount = form.watch("discountAmount")
 
-
     const selectedShop = shops?.find((s) => s.$id === selectedShopId)
 
     const discountValue = Number.parseFloat(watchedDiscountAmount) || 0
@@ -101,22 +121,95 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
     const totalAmount = watchedItems.reduce((total, item) => {
         const quantity = Number.parseFloat(item.quantity) || 0
         const unitPrice = Number.parseFloat(item.unitPrice) || 0
-        return total + (quantity * unitPrice)
+        return total + quantity * unitPrice
     }, 0)
     const discountedTotal = totalAmount - discountValue
     const dueAmount = discountedTotal - paymentValue
 
-    // Auto-calculate paid amount when discount changes
-    useEffect(() => {
-        const currentPaymentAmount = form.getValues("paymentAmount")
-        const newDiscountedTotal = totalAmount - discountValue
+    // Debug payment status calculation
+    const isPaid = dueAmount <= 0
+    console.log("=== PAYMENT STATUS DEBUG ===");
+    console.log("Total Amount:", totalAmount);
+    console.log("Discount:", discountValue);
+    console.log("Payment:", paymentValue);
+    console.log("Discounted Total:", discountedTotal);
+    console.log("Due Amount:", dueAmount);
+    console.log("Is Paid:", isPaid);
 
-        // Only auto-update if user hasn't manually changed the payment amount
-        // or if the current payment amount is empty or equals the old total
-        if (currentPaymentAmount === "" || currentPaymentAmount === 0 || currentPaymentAmount === totalAmount) {
-            form.setValue("paymentAmount", newDiscountedTotal > 0 ? newDiscountedTotal : "")
+    useEffect(() => {
+        // Only run once when we have initial data and haven't loaded it yet
+        if (mode === "edit" && initialData && saleId && !isInitialDataLoaded) {
+            console.log("=== POPULATING FORM WITH INITIAL DATA ===")
+            console.log("Initial data:", initialData)
+
+            // Parse items from database
+            let parsedItems = []
+
+            if (typeof initialData.items === "string") {
+                try {
+                    parsedItems = JSON.parse(initialData.items)
+                } catch (e) {
+                    console.error("Error parsing items string:", e)
+                }
+            } else if (Array.isArray(initialData.items)) {
+                parsedItems = initialData.items
+            }
+
+            // Handle items that might be stringified within the array
+            parsedItems = parsedItems
+                .map((item) => {
+                    if (typeof item === "string") {
+                        try {
+                            return JSON.parse(item)
+                        } catch (e) {
+                            console.error("Error parsing item:", e)
+                            return null
+                        }
+                    }
+                    return item
+                })
+                .filter(Boolean)
+
+            console.log("Parsed items:", parsedItems)
+
+            // Transform items to form structure
+            const formItems = parsedItems.map((item) => ({
+                fabricId: item?.fabricId || "",
+                quantity: Number(item?.quantity) || 1,
+                unitPrice: Number(item?.sale_price || item?.unitPrice) || 0,
+            }))
+
+            console.log("Form items:", formItems)
+
+            // Prepare complete form data
+            const formData = {
+                saleItems: formItems.length > 0 ? formItems : [{ fabricId: "", quantity: 1, unitPrice: "" }],
+                customerId: initialData.customersId || "",
+                paymentMethod: initialData.payment_method || "cash",
+                paymentAmount: Number(initialData.payment_amount || initialData.paid_amount || 0),
+                discountAmount: Number(initialData.discount_amount) || 0,
+                notes: initialData.notes || "",
+            }
+
+            console.log("Setting form data:", formData)
+
+            // Replace the field array items
+            replace(formData.saleItems)
+
+            // Set other form values
+            form.setValue("customerId", formData.customerId)
+            form.setValue("paymentMethod", formData.paymentMethod)
+            form.setValue("paymentAmount", formData.paymentAmount)
+            form.setValue("discountAmount", formData.discountAmount)
+            form.setValue("notes", formData.notes)
+
+            // Mark as loaded to prevent re-running
+            setIsInitialDataLoaded(true)
+
+            console.log("Form populated successfully")
+            console.log("Current form values:", form.getValues())
         }
-    }, [discountValue, totalAmount, form])
+    }, [mode, initialData, saleId, isInitialDataLoaded, replace]) // Removed 'form' from dependencies
 
     const handleFabricChange = (index, fabricId) => {
         const fabric = fabrics?.find((f) => f.$id === fabricId)
@@ -156,57 +249,86 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
             }
             const quantity = Number.parseFloat(item.quantity) || 0
             if (quantity > fabric.stock_quantity) {
-                toast.error(`${fabric.name} এর স্টক সীমা অতিক্রম! মাত্র ${fabric.stock_quantity} মিটার আছে`)
+                toast.error(`${fabric.name} এর স্টক সীমা অতিক্রম! মাত্র ${fabric.stock_quantity} গজ আছে`)
                 return
             }
         }
 
-        // Set immediate loading state for instant feedback
         setIsSubmitting(true)
 
         try {
-            const saleData = {
-                shopId: selectedShopId,
-                customerId: data.customerId || null,
-                soldBy: userProfile.$id,
-                items: data.saleItems.map(item => ({
-                    fabricId: item.fabricId,
-                    quantity: Number.parseFloat(item.quantity) || 0,
-                    sale_price: Number.parseFloat(item.unitPrice) || 0
-                })),
-                total_amount: totalAmount,
-                payment_amount: Number.parseFloat(data.paymentAmount) || 0,
-                payment_method: data.paymentMethod,
-                discount_amount: Number.parseFloat(data.discountAmount) || 0,
-                notes: data.notes,
-            }
+            if (mode === "edit" && saleId) {
+                // Update existing sale
+                const updateData = {
+                    items: data.saleItems.map((item) => ({
+                        fabricId: item.fabricId,
+                        quantity: Number.parseFloat(item.quantity) || 0,
+                        sale_price: Number.parseFloat(item.unitPrice) || 0,
+                    })),
+                    totalAmount: totalAmount,
+                    discountAmount: Number.parseFloat(data.discountAmount) || 0,
+                    paymentAmount: Number.parseFloat(data.paymentAmount) || 0,
+                    notes: data.notes,
+                    customerId: data.customerId || null,
+                }
 
-            await createFabricSale.mutateAsync(saleData)
-
-            setShowSuccess(true)
-
-            setTimeout(() => {
-                setShowSuccess(false)
-                setIsSubmitting(false)
-                form.reset({
-                    saleItems: [{ fabricId: "", quantity: 1, unitPrice: "" }],
-                    customerId: "",
-                    paymentMethod: "cash",
-                    paymentAmount: "",
-                    discountAmount: "",
-                    notes: "",
+                await updateFabricSale.mutateAsync({
+                    saleId: saleId,
+                    data: updateData,
                 })
 
-                if (mode === "page") {
-                    router.push("/dashboard/fabrics/sales")
-                } else if (onSuccess) {
-                    onSuccess()
-                }
-            }, 2000)
+                toast.success("বিক্রয় সফলভাবে আপডেট হয়েছে")
 
+                if (onSuccess) {
+                    onSuccess()
+                } else {
+                    router.push("/dashboard/fabrics/sales")
+                }
+
+                // Don't show success modal for edit mode
+                return
+            } else {
+                // Create new sale
+                const saleData = {
+                    shopId: selectedShopId,
+                    customerId: data.customerId || null,
+                    soldBy: userProfile.$id,
+                    items: data.saleItems.map((item) => ({
+                        fabricId: item.fabricId,
+                        quantity: Number.parseFloat(item.quantity) || 0,
+                        sale_price: Number.parseFloat(item.unitPrice) || 0,
+                    })),
+                    total_amount: totalAmount,
+                    payment_amount: Number.parseFloat(data.paymentAmount) || 0,
+                    payment_method: data.paymentMethod,
+                    discount_amount: Number.parseFloat(data.discountAmount) || 0,
+                    notes: data.notes,
+                }
+
+                await createFabricSale.mutateAsync(saleData)
+
+                setShowSuccess(true)
+
+                setTimeout(() => {
+                    setShowSuccess(false)
+
+                    if (mode === "page") {
+                        form.reset({
+                            saleItems: [{ fabricId: "", quantity: 1, unitPrice: "" }],
+                            customerId: "",
+                            paymentMethod: "cash",
+                            paymentAmount: "",
+                            discountAmount: "",
+                            notes: "",
+                        })
+                        router.push("/dashboard/fabrics/sales")
+                    } else if (onSuccess) {
+                        onSuccess()
+                    }
+                }, 2000)
+            }
         } catch (error) {
             console.error("Sale error:", error)
-            setIsSubmitting(false)
             toast.error(error.message || "বিক্রয় করতে সমস্যা হয়েছে")
         }
     }
@@ -467,10 +589,10 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
                                 <CheckCircle className="h-12 w-12 text-white" />
                             </motion.div>
                             <h3 className="text-2xl font-bold text-green-800 dark:text-green-200 mb-2">
-                                বিক্রয় সফল!
+                                {mode === "edit" ? "আপডেট সফল!" : "বিক্রয় সফল!"}
                             </h3>
                             <p className="text-green-600 dark:text-green-400">
-                                আপনার ফ্যাব্রিক বিক্রয় সফলভাবে সম্পন্ন হয়েছে
+                                আপনার ফ্যাব্রিক {mode === "edit" ? "আপডেট" : "বিক্রয়"} সফলভাবে সম্পন্ন হয়েছে
                             </p>
                         </motion.div>
                     </motion.div>
@@ -505,9 +627,11 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
                             <div className="flex flex-1 justify-between items-center gap-6">
                                 <div>
                                     <h1 className="text-3xl lg:text-4xl font-black text-white">
-                                        ফ্যাব্রিক বিক্রয়
+                                        ফ্যাব্রিক {mode === "edit" ? "এডিট" : "বিক্রয়"}
                                     </h1>
-                                    <p className="text-indigo-100 mt-1">নতুন বিক্রয় তৈরি করুন</p>
+                                    <p className="text-indigo-100 mt-1">
+                                        {mode === "edit" ? "বিক্রয়ের তথ্য পরিবর্তন করুন" : "নতুন বিক্রয় তৈরি করুন"}
+                                    </p>
                                 </div>
                                 {/* current shop name */}
                                 <div>
@@ -538,14 +662,14 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
                         animate={{ opacity: 1, x: 0 }}
                         className="lg:col-span-2"
                     >
-                        <Card className={`shadow-2xl border-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm transition-all duration-300 ${isSubmitting || createFabricSale.isLoading ? "opacity-90 scale-[0.99]" : "opacity-100 scale-100"
+                        <Card className={`shadow-2xl border-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm transition-all duration-300 ${isSubmitting ? "opacity-90 scale-[0.99]" : "opacity-100 scale-100"
                             }`}>
                             <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/50 dark:to-blue-950/50 border-b">
                                 <CardTitle className="flex items-center gap-3 text-2xl">
                                     <div className="p-2 bg-indigo-500 rounded-lg shadow-lg">
                                         <ShoppingBag className="h-6 w-6 text-white" />
                                     </div>
-                                    বিক্রয় তথ্য
+                                    {mode === "edit" ? "বিক্রয়ের তথ্য" : "বিক্রয় তথ্য"}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="p-6">
@@ -619,13 +743,18 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
                                                                                 return (
                                                                                     <SelectItem key={fabric.$id} value={fabric.$id}>
                                                                                         <div className="flex justify-between items-center w-full gap-2">
-                                                                                            <div className="flex items-center gap-2">
-                                                                                                <span className="font-medium">{fabric.name}</span>
+                                                                                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                                                                <span
+                                                                                                    className="font-medium truncate max-w-[150px]"
+                                                                                                    title={fabric.name}
+                                                                                                >
+                                                                                                    {fabric.name}
+                                                                                                </span>
                                                                                                 {isOutOfStock && (
-                                                                                                    <AlertCircle className="h-4 w-4 text-red-500" />
+                                                                                                    <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
                                                                                                 )}
                                                                                                 {isLowStock && !isOutOfStock && (
-                                                                                                    <AlertCircle className="h-4 w-4 text-yellow-500" />
+                                                                                                    <AlertCircle className="h-4 w-4 text-yellow-500 flex-shrink-0" />
                                                                                                 )}
                                                                                             </div>
                                                                                             <Badge
@@ -636,14 +765,14 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
                                                                                                             ? "outline"
                                                                                                             : "secondary"
                                                                                                 }
-                                                                                                className={`ml-2 ${isOutOfStock
+                                                                                                className={`ml-2 flex-shrink-0 ${isOutOfStock
                                                                                                     ? "bg-red-100 text-red-800 border-red-300"
                                                                                                     : isLowStock
                                                                                                         ? "bg-yellow-100 text-yellow-800 border-yellow-300"
                                                                                                         : "bg-green-100 text-green-800 border-green-300"
                                                                                                     }`}
                                                                                             >
-                                                                                                {fabric.stock_quantity} মি
+                                                                                                {fabric.stock_quantity} গজ
                                                                                             </Badge>
                                                                                         </div>
                                                                                     </SelectItem>
@@ -662,7 +791,7 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
 
                                                         <div className="space-y-2">
                                                             <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                                                                পরিমাণ (মিটার) *
+                                                                পরিমাণ (গজ) *
                                                             </Label>
                                                             <Controller
                                                                 name={`saleItems.${index}.quantity`}
@@ -682,7 +811,7 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
 
                                                         <div className="space-y-2">
                                                             <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                                                                দর/মি (৳) *
+                                                                দর/গজ (৳) *
                                                             </Label>
                                                             <Controller
                                                                 name={`saleItems.${index}.unitPrice`}
@@ -735,7 +864,9 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
                                                         <SelectContent>
                                                             {customers?.map((customer) => (
                                                                 <SelectItem key={customer.$id} value={customer.$id}>
-                                                                    {customer.name} - {customer.phone}
+                                                                    <span className="truncate max-w-[200px]" title={`${customer.name} - ${customer.phone}`}>
+                                                                        {customer.name} - {customer.phone}
+                                                                    </span>
                                                                 </SelectItem>
                                                             ))}
                                                         </SelectContent>
@@ -851,12 +982,12 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
                                     </div>
 
                                     <motion.div
-                                        whileHover={!(isSubmitting || createFabricSale.isLoading) ? { scale: 1.02 } : {}}
-                                        whileTap={!(isSubmitting || createFabricSale.isLoading) ? { scale: 0.98 } : {}}
+                                        whileHover={!isSubmitting ? { scale: 1.02 } : {}}
+                                        whileTap={!isSubmitting ? { scale: 0.98 } : {}}
                                         className="w-full relative"
                                     >
                                         {/* Instant Loading Feedback */}
-                                        {isSubmitting && !createFabricSale.isLoading && (
+                                        {isSubmitting && (
                                             <motion.div
                                                 initial={{ opacity: 0, scale: 0.95 }}
                                                 animate={{ opacity: 0.1, scale: 1 }}
@@ -866,14 +997,14 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
                                         )}
                                         <Button
                                             onClick={form.handleSubmit(onSubmit)}
-                                            disabled={isSubmitting || createFabricSale.isLoading}
-                                            className={`w-full h-16 text-xl font-bold rounded-2xl shadow-2xl transition-all duration-200 relative overflow-hidden ${isSubmitting || createFabricSale.isLoading
+                                            disabled={isSubmitting}
+                                            className={`w-full h-16 text-xl font-bold rounded-2xl shadow-2xl transition-all duration-200 relative overflow-hidden ${isSubmitting
                                                 ? "bg-gradient-to-r from-gray-400 via-gray-500 to-gray-400 cursor-not-allowed opacity-80 shadow-inner"
                                                 : "bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-600 hover:from-indigo-700 hover:via-blue-700 hover:to-indigo-700 hover:shadow-indigo-500/50"
                                                 } text-white`}
                                         >
                                             <div className="flex items-center justify-center gap-3">
-                                                {isSubmitting || createFabricSale.isLoading ? (
+                                                {isSubmitting ? (
                                                     <>
                                                         {/* Loading Spinner */}
                                                         <motion.div
@@ -887,7 +1018,7 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
                                                             transition={{ duration: 1.2, repeat: Infinity }}
                                                             className="text-lg font-semibold"
                                                         >
-                                                            বিক্রয় প্রসেস হচ্ছে...
+                                                            {mode === "edit" ? "আপডেট হচ্ছে..." : "বিক্রয় প্রসেস হচ্ছে..."}
                                                         </motion.span>
                                                     </>
                                                 ) : (
@@ -900,13 +1031,15 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
                                                             <CheckCircle className="h-6 w-6 flex-shrink-0" />
                                                         </motion.div>
                                                         {/* Normal Text */}
-                                                        <span className="font-bold">বিক্রয় কনফার্ম করুন</span>
+                                                        <span className="font-bold">
+                                                            {mode === "edit" ? "আপডেট কনফার্ম করুন" : "বিক্রয় কনফার্ম করুন"}
+                                                        </span>
                                                     </>
                                                 )}
                                             </div>
 
                                             {/* Loading Overlay */}
-                                            {createFabricSale.isLoading && (
+                                            {isSubmitting && (
                                                 <motion.div
                                                     initial={{ opacity: 0, scale: 0.8 }}
                                                     animate={{ opacity: 0.15, scale: 1 }}
@@ -928,7 +1061,7 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
                         className="lg:col-span-1"
                     >
                         <div className="sticky top-6 space-y-4">
-                            <Card className={`shadow-2xl border-0 bg-gradient-to-br from-indigo-600 to-blue-600 text-white overflow-hidden transition-all duration-300 ${isSubmitting || createFabricSale.isLoading ? "opacity-80" : "opacity-100"
+                            <Card className={`shadow-2xl border-0 bg-gradient-to-br from-indigo-600 to-blue-600 text-white overflow-hidden transition-all duration-300 ${isSubmitting ? "opacity-80" : "opacity-100"
                                 }`}>
                                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff0a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0a_1px,transparent_1px)] bg-[size:20px_20px]"></div>
                                 <CardHeader className="relative border-b border-white/10">
@@ -949,7 +1082,7 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
                                                     <div>
                                                         <div className="font-semibold">{fabric.name}</div>
                                                         <div className="text-sm text-indigo-100">
-                                                            {(Number.parseFloat(item.quantity) || 0)} মিটার × ৳{(Number.parseFloat(item.unitPrice) || 0)}
+                                                            {(Number.parseFloat(item.quantity) || 0)} গজ × ৳{(Number.parseFloat(item.unitPrice) || 0)}
                                                         </div>
                                                     </div>
                                                     <div className="text-lg font-bold">
@@ -990,6 +1123,14 @@ export function EnhancedFabricSalesForm({ mode = "page", onSuccess, onCancel }) 
                                             <span className={`text-2xl font-black ${dueAmount > 0 ? 'text-yellow-200' : 'text-green-200'}`}>
                                                 ৳{dueAmount.toFixed(2)}
                                             </span>
+                                        </div>
+
+                                        {/* Payment Status Indicator */}
+                                        <div className="flex justify-between items-center p-3 bg-white/10 backdrop-blur-sm rounded-lg">
+                                            <span className="font-semibold">স্ট্যাটাস:</span>
+                                            <Badge className={`${isPaid ? 'bg-green-500/20 text-green-200 border-green-400/30' : 'bg-yellow-500/20 text-yellow-200 border-yellow-400/30'}`}>
+                                                {isPaid ? 'পরিশোধিত' : 'বাকি'}
+                                            </Badge>
                                         </div>
                                     </div>
 

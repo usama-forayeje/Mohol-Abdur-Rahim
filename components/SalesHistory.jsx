@@ -42,7 +42,7 @@ import {
   AlertCircle,
   Receipt,
 } from "lucide-react"
-import { toast } from "react-hot-toast"
+import { toast } from "sonner"
 
 
 // Mock data - replace with actual data from your service
@@ -278,7 +278,7 @@ export default function SalesHistory() {
                                     <div key={index} className="flex justify-between p-2 bg-muted rounded">
                                       <span>{item.fabricName}</span>
                                       <span>
-                                        {item.quantity} মিটার × ৳{item.sale_price} = ৳
+                                        {item.quantity} গজ × ৳{item.sale_price} = ৳
                                         {(item.quantity * item.sale_price).toFixed(2)}
                                       </span>
                                     </div>
