@@ -1,4 +1,4 @@
-/** @type {import('next').NextConfig} */
+
 const nextConfig = {
   images: {
     remotePatterns: [
@@ -27,6 +27,9 @@ const nextConfig = {
         pathname: "/**",
       },
     ],
+  },
+  devServer: {
+    port: 3000,
   },
 };
 

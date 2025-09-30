@@ -329,18 +329,18 @@ export default function FabricPage() {
             className={`font-medium ${isLowStock(row.original.stock_quantity) ? "text-red-600" : ""
               }`}
           >
-            {row.original.stock_quantity} মিটার
+            {row.original.stock_quantity} গজ
           </div>
         ),
       },
       {
         accessorKey: "purchase_cost_per_meter",
-        header: "ক্রয়মূল্য/মিটার",
+        header: "ক্রয়মূল্য/গজ",
         cell: ({ row }) => `OMR ${row.original.purchase_cost_per_meter}`,
       },
       {
         accessorKey: "price_per_meter",
-        header: "বিক্রয়মূল্য/মিটার",
+        header: "বিক্রয়মূল্য/গজ",
         cell: ({ row }) => `OMR ${row.original.price_per_meter}`,
       },
       {
@@ -511,7 +511,7 @@ export default function FabricPage() {
                     name="stock_quantity"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>স্টক পরিমাণ (মিটার) *</FormLabel>
+                        <FormLabel>স্টক পরিমাণ (গজ) *</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -535,7 +535,7 @@ export default function FabricPage() {
                     name="purchase_cost_per_meter"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>ক্রয়মূল্য/মিটার *</FormLabel>
+                        <FormLabel>ক্রয়মূল্য/গজ *</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -559,7 +559,7 @@ export default function FabricPage() {
                     name="price_per_meter"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>বিক্রয়মূল্য/মিটার *</FormLabel>
+                        <FormLabel>বিক্রয়মূল্য/গজ *</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -907,7 +907,7 @@ export default function FabricPage() {
                             : ""
                             }`}
                         >
-                          স্টক: {fabric.stock_quantity} মিটার
+                          স্টক: {fabric.stock_quantity} গজ
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1108,7 +1108,7 @@ export default function FabricPage() {
                 name="stock_quantity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>স্টক পরিমাণ (মিটার) *</FormLabel>
+                    <FormLabel>স্টক পরিমাণ (গজ) *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -1129,7 +1129,7 @@ export default function FabricPage() {
                 name="purchase_cost_per_meter"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>ক্রয়মূল্য/মিটার *</FormLabel>
+                    <FormLabel>ক্রয়মূল্য/গজ *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -1150,7 +1150,7 @@ export default function FabricPage() {
                 name="price_per_meter"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>বিক্রয়মূল্য/মিটার *</FormLabel>
+                    <FormLabel>বিক্রয়মূল্য/গজ *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"

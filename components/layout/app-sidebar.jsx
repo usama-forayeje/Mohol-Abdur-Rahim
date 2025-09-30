@@ -376,14 +376,6 @@ export default function AppSidebar() {
 
     const hasAccess = roleAccess && permissionAccess
 
-    console.log('🔍 Item access check:', {
-      item: item.title,
-      userRole,
-      roleAccess,
-      permissionAccess,
-      hasAccess
-    });
-
     return hasAccess
   }
 
@@ -405,11 +397,7 @@ export default function AppSidebar() {
     router.push("/sign-in")
   }
 
-  console.log('📋 Navigation items:', {
-    total: navigation.length,
-    filtered: filteredNavigation.length,
-    currentRole
-  });
+
 
   return (
     <Sidebar collapsible="icon">

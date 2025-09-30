@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Download, Printer, X, User, Package, Receipt, Send, Star, Shield, Zap } from "lucide-react"
-import { toast } from "react-hot-toast"
+import { toast } from "sonner"
 
 export default function InvoiceGenerator({ saleData, customerData, shopData, fabrics, onClose }) {
   const invoiceRef = useRef()
@@ -317,7 +317,7 @@ export default function InvoiceGenerator({ saleData, customerData, shopData, fab
                       <th className="p-4 text-left font-bold text-slate-700 border-b">ফ্যাব্রিক নাম</th>
                       <th className="p-4 text-left font-bold text-slate-700 border-b">কোড</th>
                       <th className="p-4 text-left font-bold text-slate-700 border-b">পরিমাণ</th>
-                      <th className="p-4 text-left font-bold text-slate-700 border-b">দাম/মিটার</th>
+                      <th className="p-4 text-left font-bold text-slate-700 border-b">দাম/গজ</th>
                       <th className="p-4 text-left font-bold text-slate-700 border-b">মোট</th>
                     </tr>
                   </thead>
@@ -327,7 +327,7 @@ export default function InvoiceGenerator({ saleData, customerData, shopData, fab
                         <td className="p-4 font-medium">{index + 1}</td>
                         <td className="p-4 font-semibold text-slate-800">{item.fabricName}</td>
                         <td className="p-4 text-slate-600 font-mono">{item.fabricCode}</td>
-                        <td className="p-4 font-medium">{item.quantity} মিটার</td>
+                        <td className="p-4 font-medium">{item.quantity} গজ</td>
                         <td className="p-4 font-medium">৳{item.sale_price.toFixed(2)}</td>
                         <td className="p-4 font-bold text-green-600 text-lg">৳{item.total.toFixed(2)}</td>
                       </tr>

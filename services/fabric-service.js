@@ -7,13 +7,22 @@ const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
 const COLLECTION_ID = process.env.NEXT_PUBLIC_APPWRITE_FABRICS_COLLECTION_ID;
 
 export const fabricService = {
-  async getFabrics() {
+  async getFabrics(shopId = null) {
     try {
-      const res = await databases.listDocuments(DATABASE_ID, COLLECTION_ID);
+      // If shopId is provided, filter fabrics by shop
+      const queries = shopId ? [`shopId=${shopId}`] : [];
+
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTION_ID, queries);
       return res.documents;
     } catch (err) {
       console.error("Error fetching fabrics:", err);
-      throw err;
+      try {
+        const res = await databases.listDocuments(DATABASE_ID, COLLECTION_ID);
+        return res.documents;
+      } catch (fallbackErr) {
+        console.error("Fallback also failed:", fallbackErr);
+        throw fallbackErr;
+      }
     }
   },
 
@@ -56,12 +65,12 @@ export const fabricService = {
 };
 
 // React Query hooks
-export function useFabrics() {
+export function useFabrics(shopId = null) {
   const setFabrics = useFabricStore((state) => state.setFabrics);
 
   return useQuery({
-    queryKey: ["fabrics"],
-    queryFn: fabricService.getFabrics,
+    queryKey: ["fabrics", shopId],
+    queryFn: () => fabricService.getFabrics(shopId),
     onSuccess: (data) => {
       setFabrics(data);
     },
