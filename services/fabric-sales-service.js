@@ -50,7 +50,8 @@ export const fabricSalesService = {
       );
       // 2. Create fabric sale record - Mixed relationships
       const netAmount = saleData.total_amount - (saleData.discount_amount || 0);
-      const paymentStatus = (saleData.payment_amount || 0) >= netAmount ? "paid" : "pending";
+      const paymentStatus =
+        (saleData.payment_amount || 0) >= netAmount ? "paid" : "pending";
 
       console.log("=== CREATE SALE PAYMENT DEBUG ===");
       console.log("Total Amount:", saleData.total_amount);
@@ -263,7 +264,7 @@ export const fabricSalesService = {
 
       // Parse existing items
       let existingItems = [];
-      if (typeof existingSale.items === 'string') {
+      if (typeof existingSale.items === "string") {
         try {
           const parsed = JSON.parse(existingSale.items);
           existingItems = Array.isArray(parsed) ? parsed : [parsed];
@@ -273,17 +274,19 @@ export const fabricSalesService = {
           existingItems = [];
         }
       } else if (Array.isArray(existingSale.items)) {
-        existingItems = existingSale.items.map(item => {
-          if (typeof item === 'string') {
-            try {
-              return JSON.parse(item);
-            } catch (e) {
-              console.error("Error parsing individual item:", e);
-              return null;
+        existingItems = existingSale.items
+          .map((item) => {
+            if (typeof item === "string") {
+              try {
+                return JSON.parse(item);
+              } catch (e) {
+                console.error("Error parsing individual item:", e);
+                return null;
+              }
             }
-          }
-          return item;
-        }).filter(Boolean);
+            return item;
+          })
+          .filter(Boolean);
         console.log("Parsed existing items from array:", existingItems);
       }
 
@@ -298,7 +301,8 @@ export const fabricSalesService = {
 
       // Calculate payment status
       const netAmount = data.totalAmount - data.discountAmount;
-      const paymentStatus = (data.paymentAmount || 0) >= netAmount ? "paid" : "pending";
+      const paymentStatus =
+        (data.paymentAmount || 0) >= netAmount ? "paid" : "pending";
 
       console.log("=== PAYMENT STATUS CALCULATION ===");
       console.log("Total Amount:", data.totalAmount);
@@ -334,21 +338,24 @@ export const fabricSalesService = {
 
       // Create lookup maps for easy comparison
       const existingItemsMap = new Map();
-      existingItems.forEach(item => {
+      existingItems.forEach((item) => {
         if (item && item.fabricId) {
           existingItemsMap.set(item.fabricId, item);
         }
       });
 
       const newItemsMap = new Map();
-      data.items.forEach(item => {
+      data.items.forEach((item) => {
         if (item && item.fabricId) {
           newItemsMap.set(item.fabricId, item);
         }
       });
 
       // Process each fabric for stock adjustment
-      const allFabricIds = new Set([...existingItemsMap.keys(), ...newItemsMap.keys()]);
+      const allFabricIds = new Set([
+        ...existingItemsMap.keys(),
+        ...newItemsMap.keys(),
+      ]);
 
       for (const fabricId of allFabricIds) {
         try {
@@ -375,14 +382,18 @@ export const fabricSalesService = {
 
             console.log(`📊 Stock adjustment for ${fabricId}:`);
             console.log(`   Current stock: ${currentStock}`);
-            console.log(`   Quantity difference: ${quantityDifference} (${existingQuantity} - ${newQuantity})`);
+            console.log(
+              `   Quantity difference: ${quantityDifference} (${existingQuantity} - ${newQuantity})`
+            );
 
             // Stock adjustment logic:
             // If quantityDifference > 0 (selling less), add back to stock
             // If quantityDifference < 0 (selling more), subtract from stock
             const newStock = currentStock + quantityDifference;
 
-            console.log(`📦 Stock adjustment: ${currentStock} + ${quantityDifference} = ${newStock}`);
+            console.log(
+              `📦 Stock adjustment: ${currentStock} + ${quantityDifference} = ${newStock}`
+            );
 
             await databases.updateDocument(
               DATABASE_ID,
@@ -391,9 +402,13 @@ export const fabricSalesService = {
               { stock_quantity: Math.max(0, newStock) }
             );
 
-            console.log(`✅ Updated stock for ${fabricId}: ${Math.max(0, newStock)} गज`);
+            console.log(
+              `✅ Updated stock for ${fabricId}: ${Math.max(0, newStock)} गज`
+            );
           } else {
-            console.log(`ℹ️ No quantity change for ${fabricId}, skipping stock update`);
+            console.log(
+              `ℹ️ No quantity change for ${fabricId}, skipping stock update`
+            );
           }
         } catch (error) {
           console.error(`❌ Error updating stock for ${fabricId}:`, error);
@@ -496,7 +511,9 @@ export function useUpdateFabricSale() {
       // Invalidate all related queries for real-time updates
       queryClient.invalidateQueries({ queryKey: fabricSalesKeys.lists() });
       queryClient.invalidateQueries({ queryKey: ["fabric-sales"] });
-      queryClient.invalidateQueries({ queryKey: fabricSalesKeys.detail(variables.saleId) });
+      queryClient.invalidateQueries({
+        queryKey: fabricSalesKeys.detail(variables.saleId),
+      });
 
       // Critical: Invalidate fabrics queries for real-time stock updates
       queryClient.invalidateQueries({ queryKey: ["fabrics"] });

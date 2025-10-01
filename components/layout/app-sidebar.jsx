@@ -139,7 +139,7 @@ export default function AppSidebar() {
           {
             title: "কাপড়ের রিপোর্ট",
             icon: FileText,
-            url: "/dashboard/fabrics/report",
+            url: "/dashboard/fabrics/reports",
             roles: ["superAdmin", "admin", "manager"],
             permission: "VIEW_REPORTS",
           },

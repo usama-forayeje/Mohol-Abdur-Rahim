@@ -12,7 +12,11 @@ export const fabricService = {
       // If shopId is provided, filter fabrics by shop
       const queries = shopId ? [`shopId=${shopId}`] : [];
 
-      const res = await databases.listDocuments(DATABASE_ID, COLLECTION_ID, queries);
+      const res = await databases.listDocuments(
+        DATABASE_ID,
+        COLLECTION_ID,
+        queries
+      );
       return res.documents;
     } catch (err) {
       console.error("Error fetching fabrics:", err);
