@@ -2,6 +2,7 @@ import { databases, storage, account } from "@/appwrite/appwrite";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ID, Query } from "appwrite";
 import { useCatalogStore } from "@/store/catalogStore";
+import { processImages, validateImageFile } from "@/lib/image-optimizer";
 
 const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
 const COLLECTION_ID = process.env.NEXT_PUBLIC_APPWRITE_CATALOG_COLLECTION_ID;
@@ -31,13 +32,47 @@ export const catalogService = {
       // Get current user
       const user = await account.get();
 
-      // Multiple image upload
+      // Multiple image upload with optimization
       if (values.images && values.images.length > 0) {
-        const uploadPromises = values.images.map((file) =>
-          storage.createFile(STORAGE_ID, ID.unique(), file)
-        );
-        const uploadedFiles = await Promise.all(uploadPromises);
-        imageIds = uploadedFiles.map((file) => file.$id);
+        try {
+          const filesArray = Array.from(values.images);
+
+          // Validate all files first
+          filesArray.forEach(file => validateImageFile(file));
+
+          // Process and optimize images (with fallback)
+          let { processedFiles } = await processImages(filesArray, {
+            enableCompression: true,
+            enableFormatConversion: false, // Disable for now to avoid extension issues
+            targetFormat: 'image/webp'
+          });
+
+          // If processing fails, use original files
+          if (!processedFiles || processedFiles.length === 0) {
+            processedFiles = filesArray;
+          }
+
+          // Upload optimized images
+          const uploadPromises = processedFiles.map((file) =>
+            storage.createFile(STORAGE_ID, ID.unique(), file)
+          );
+          const uploadedFiles = await Promise.all(uploadPromises);
+          imageIds = uploadedFiles.map((file) => file.$id);
+        } catch (error) {
+          console.error("Image processing error:", error);
+          // Fallback to original files if processing fails
+          try {
+            const filesArray = Array.from(values.images);
+            const uploadPromises = filesArray.map((file) =>
+              storage.createFile(STORAGE_ID, ID.unique(), file)
+            );
+            const uploadedFiles = await Promise.all(uploadPromises);
+            imageIds = uploadedFiles.map((file) => file.$id);
+          } catch (fallbackError) {
+            console.error("Fallback upload also failed:", fallbackError);
+            throw new Error(`ছবি আপলোড করতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।`);
+          }
+        }
       }
 
       // Ensure shopIds is an array
@@ -74,13 +109,48 @@ export const catalogService = {
     try {
       let imageIds = [...previousImageIds];
 
-      // Upload new images if provided
+      // Upload new images if provided with optimization
       if (newImages && newImages.length > 0) {
-        const uploadPromises = newImages.map((file) =>
-          storage.createFile(STORAGE_ID, ID.unique(), file)
-        );
-        const uploadedFiles = await Promise.all(uploadPromises);
-        imageIds = [...imageIds, ...uploadedFiles.map((file) => file.$id)];
+        try {
+          // Validate and process new images
+          const filesArray = Array.from(newImages);
+
+          // Validate all files first
+          filesArray.forEach(file => validateImageFile(file));
+
+          // Process and optimize images (with fallback)
+          let { processedFiles } = await processImages(filesArray, {
+            enableCompression: true,
+            enableFormatConversion: false, // Disable for now to avoid extension issues
+            targetFormat: 'image/webp'
+          });
+
+          // If processing fails, use original files
+          if (!processedFiles || processedFiles.length === 0) {
+            processedFiles = filesArray;
+          }
+
+          // Upload optimized images
+          const uploadPromises = processedFiles.map((file) =>
+            storage.createFile(STORAGE_ID, ID.unique(), file)
+          );
+          const uploadedFiles = await Promise.all(uploadPromises);
+          imageIds = [...imageIds, ...uploadedFiles.map((file) => file.$id)];
+        } catch (error) {
+          console.error("New image processing error:", error);
+          // Fallback to original files if processing fails
+          try {
+            const filesArray = Array.from(newImages);
+            const uploadPromises = filesArray.map((file) =>
+              storage.createFile(STORAGE_ID, ID.unique(), file)
+            );
+            const uploadedFiles = await Promise.all(uploadPromises);
+            imageIds = [...imageIds, ...uploadedFiles.map((file) => file.$id)];
+          } catch (fallbackError) {
+            console.error("Fallback upload also failed:", fallbackError);
+            throw new Error(`নতুন ছবি আপলোড করতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।`);
+          }
+        }
       }
 
       // Ensure shopIds is an array

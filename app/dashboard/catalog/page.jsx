@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -14,11 +14,11 @@ import {
 } from "@/services/catalog-service";
 import { useShops } from "@/services/shop-service";
 
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Dialog,
     DialogContent,
@@ -46,14 +46,6 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import {
     Plus,
     Trash2,
     Edit2,
@@ -71,9 +63,12 @@ import Image from "next/image";
 import PageContainer from "@/components/layout/page-container";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { VoiceTypingButton } from "@/components/ui/voice-typing-button";
 import { useCatalogStore } from "@/store/catalogStore";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth-store";
+import { setupLazyLoading, getOptimizedImageUrl } from "@/lib/image-optimizer";
+import { VirtualTable } from "@/components/ui/virtual-table";
 
 const catalogSchema = z.object({
     shopIds: z.array(z.string()).min(1, "অন্তত একটি দোকান নির্বাচন করুন"),
@@ -87,14 +82,17 @@ const catalogSchema = z.object({
 });
 
 const CATEGORY_TYPES = [
-    "শাড়ি",
-    "সালোয়ার কামিজ",
-    "সুট",
-    "ওয়েস্টার্ন",
-    "ট্রাডিশনাল",
-    "ব্রাইডাল",
-    "এক্সেসরিজ",
-    "অন্যান্য"
+    "এমব্রয়ডারি ✨",
+    "স্টোন ওয়ার্ক 💎",
+    "জরি ওয়ার্ক 🌟",
+    "কারচুপি 🎨",
+    "ব্লক প্রিন্ট 🖼️",
+    "স্ক্রিন প্রিন্ট 🖨️",
+    "টাই-ডাই 🌈",
+    "বাটিক 🖌️",
+
+    // Others
+    "অন্যান্য 📦"
 ];
 
 export default function CatalogPage() {
@@ -104,6 +102,7 @@ export default function CatalogPage() {
     const [selectedImages, setSelectedImages] = useState([]);
     const [imagePreviews, setImagePreviews] = useState([]);
     const [existingImageUrls, setExistingImageUrls] = useState([]);
+    const [imagePreviewModal, setImagePreviewModal] = useState(null);
     const { user } = useAuthStore();
 
     const { control, register, handleSubmit, reset, setValue, watch } = useForm({
@@ -126,6 +125,7 @@ export default function CatalogPage() {
     const { data: shops, isLoading: shopsLoading } = useShops();
 
     const filteredItems = getFilteredCatalogItems(search);
+
 
     const createCatalogItem = useCreateCatalogItem();
     const updateCatalogItem = useUpdateCatalogItem();
@@ -228,233 +228,164 @@ export default function CatalogPage() {
         setIsFormOpen(true);
     };
 
+    const openImagePreview = (imageId, itemName) => {
+        const imageUrl = getOptimizedImageUrl(imageId, { width: 800, height: 600 });
+        setImagePreviewModal({ url: imageUrl, title: itemName });
+    };
+
     const getCategoryIcon = (type) => {
-        const icons = {
-            "শাড়ি": "👗",
-            "সালোয়ার কামিজ": "👘",
-            "সুট": "👔",
-            "ওয়েস্টার্ন": "👚",
-            "ট্রাডিশনাল": "🎎",
-            "ব্রাইডাল": "💍",
-            "এক্সেসরিজ": "💎",
-            "অন্যান্য": "📦"
-        };
-        return icons[type] || "📦";
+        // Extract emoji from category name if present
+        const emojiMatch = type.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u);
+        return emojiMatch ? emojiMatch[0] : "📦";
     };
 
     return (
         <PageContainer>
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-hidden">
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            ক্যাটালগ ব্যবস্থাপনা
-                        </h1>
-                        <p className="text-muted-foreground mt-1">আপনার পণ্য ক্যাটালগ পরিচালনা করুন</p>
-                    </div>
-                    <Button
-                        onClick={openForm}
-                        className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-200 hover:scale-105 hover:shadow-lg"
-                    >
-                        <Plus className="h-4 w-4" />
-                        নতুন আইটেম যোগ করুন
-                    </Button>
-                </div>
-
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium">মোট আইটেম</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{catalogItems.length}</div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium">ক্যাটাগরি</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{new Set(catalogItems.map(item => item.type)).size}</div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium">সর্বোচ্চ মূল্য</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">
-                                OMR {Math.max(...catalogItems.map(item => item.sell_price || 0)).toFixed(2)}
+                <div className="flex flex-col gap-4">
+                    <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                        <div className="flex-1 min-w-0">
+                            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent truncate">
+                                ক্যাটালগ ব্যবস্থাপনা
+                            </h1>
+                            <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1 sm:mt-2">
+                                <p className="text-xs sm:text-sm lg:text-base text-muted-foreground">আপনার পণ্য ক্যাটালগ পরিচালনা করুন</p>
+                                <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                                    ✨ {CATEGORY_TYPES.length} ক্যাটাগরি
+                                </Badge>
+                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                    📊 {catalogItems.length} আইটেম
+                                </Badge>
+                                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                    🎤 ভয়েস রেডি
+                                </Badge>
                             </div>
-                        </CardContent>
-                    </Card>
-
-                    
+                        </div>
+                        <Button
+                            onClick={openForm}
+                            className="w-full sm:w-auto lg:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-200 hover:scale-105 hover:shadow-lg text-sm sm:text-base"
+                        >
+                            <Plus className="h-4 w-4" />
+                            নতুন আইটেম যোগ করুন
+                        </Button>
+                    </div>
                 </div>
+
 
                 {/* Search and Table */}
-                <Card className="shadow-lg border-0">
-                    <CardHeader>
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                            <div>
-                                <CardTitle className="text-2xl font-bold">ক্যাটালগ আইটেম</CardTitle>
-                                <CardDescription>সব ক্যাটালগ আইটেমের তালিকা</CardDescription>
+                <Card className="shadow-lg border-0 w-full">
+                    <CardHeader className="pb-4 p-3 sm:p-6">
+                        <div className="flex flex-col gap-3 sm:gap-4">
+                            <div className="flex flex-col gap-3">
+                                <div className="flex-1 min-w-0">
+                                    <CardTitle className="text-lg sm:text-xl lg:text-2xl font-bold flex flex-wrap items-center gap-1 sm:gap-2">
+                                        ক্যাটালগ আইটেম
+                                        <Badge variant="outline" className="text-xs">
+                                            অপ্টিমাইজড ইমেজ 📸
+                                        </Badge>
+                                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                            ক্লিক করে প্রিভিউ 👁️
+                                        </Badge>
+                                    </CardTitle>
+                                    <CardDescription className="mt-1 text-sm sm:text-base">সব ক্যাটালগ আইটেমের তালিকা (স্বয়ংক্রিয় ইমেজ অপ্টিমাইজেশন এবং পেজিনেশন)</CardDescription>
+                                </div>
                             </div>
-                            <div className="relative w-full sm:w-auto">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                            <div className="relative w-full">
+                                <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-3 w-3 sm:h-4 sm:w-4 z-10" />
                                 <Input
                                     placeholder="নাম, ধরন, বা ডিজাইন কোড দিয়ে খুঁজুন..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    className="pl-10 w-full sm:w-80"
+                                    className="pl-8 sm:pl-10 w-full text-sm sm:text-base h-10 sm:h-12"
                                 />
                             </div>
                         </div>
                     </CardHeader>
 
-                    <CardContent>
+                    <CardContent className="p-3 sm:p-6">
                         {isLoading ? (
-                            <div className="flex justify-center items-center py-12">
-                                <Loader2 className="h-8 w-8 animate-spin mr-2" />
-                                <span>লোড হচ্ছে...</span>
-                            </div>
-                        ) : filteredItems.length === 0 ? (
-                            <div className="text-center py-12">
-                                <div className="text-muted-foreground mb-4">কোন ক্যাটালগ আইটেম পাওয়া যায়নি</div>
-                                <Button onClick={openForm}>প্রথম আইটেম তৈরি করুন</Button>
+                            <div className="space-y-4">
+                                {/* Table Skeleton */}
+                                <div className="rounded-md border overflow-hidden">
+                                    <div className="border-b bg-muted/50 p-3 sm:p-4">
+                                        <div className="flex gap-2 sm:gap-4">
+                                            <div className="h-3 sm:h-4 bg-muted rounded w-16 sm:w-20 animate-pulse"></div>
+                                            <div className="h-3 sm:h-4 bg-muted rounded w-12 sm:w-16 animate-pulse"></div>
+                                            <div className="h-3 sm:h-4 bg-muted rounded w-20 sm:w-24 animate-pulse"></div>
+                                            <div className="h-3 sm:h-4 bg-muted rounded w-12 sm:w-16 animate-pulse"></div>
+                                            <div className="h-3 sm:h-4 bg-muted rounded w-16 sm:w-20 animate-pulse"></div>
+                                            <div className="h-3 sm:h-4 bg-muted rounded w-8 sm:w-12 animate-pulse"></div>
+                                            <div className="h-3 sm:h-4 bg-muted rounded w-12 sm:w-16 animate-pulse"></div>
+                                        </div>
+                                    </div>
+                                    {Array.from({ length: 6 }).map((_, i) => (
+                                        <div key={i} className="border-b p-3 sm:p-4">
+                                            <div className="flex gap-2 sm:gap-4 items-center">
+                                                <div className="h-3 sm:h-4 bg-muted rounded w-24 sm:w-32 animate-pulse"></div>
+                                                <div className="h-5 sm:h-6 bg-muted rounded w-16 sm:w-20 animate-pulse"></div>
+                                                <div className="h-3 sm:h-4 bg-muted rounded w-20 sm:w-24 animate-pulse"></div>
+                                                <div className="h-3 sm:h-4 bg-muted rounded w-12 sm:w-16 animate-pulse"></div>
+                                                <div className="h-3 sm:h-4 bg-muted rounded w-12 sm:w-16 animate-pulse"></div>
+                                                <div className="flex gap-1">
+                                                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-muted rounded animate-pulse"></div>
+                                                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-muted rounded animate-pulse"></div>
+                                                </div>
+                                                <div className="flex gap-1 sm:gap-2">
+                                                    <div className="h-7 w-7 sm:h-8 sm:w-8 bg-muted rounded animate-pulse"></div>
+                                                    <div className="h-7 w-7 sm:h-8 sm:w-8 bg-muted rounded animate-pulse"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                {/* Pagination Skeleton */}
+                                <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t gap-3 sm:gap-0">
+                                    <div className="h-3 sm:h-4 bg-muted rounded w-40 sm:w-48 animate-pulse"></div>
+                                    <div className="flex gap-1 sm:gap-2">
+                                        <div className="h-7 w-7 sm:h-8 sm:w-8 bg-muted rounded animate-pulse"></div>
+                                        <div className="h-7 w-7 sm:h-8 sm:w-8 bg-muted rounded animate-pulse"></div>
+                                        <div className="h-7 w-7 sm:h-8 sm:w-8 bg-muted rounded animate-pulse"></div>
+                                        <div className="h-7 w-7 sm:h-8 sm:w-8 bg-muted rounded animate-pulse"></div>
+                                        <div className="h-7 w-7 sm:h-8 sm:w-8 bg-muted rounded animate-pulse"></div>
+                                    </div>
+                                </div>
                             </div>
                         ) : (
-                            <div className="rounded-md border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>আইকন</TableHead>
-                                            <TableHead>নাম</TableHead>
-                                            <TableHead>ধরন</TableHead>
-                                            <TableHead>ডিজাইন কোড</TableHead>
-                                            <TableHead>মূল্য</TableHead>
-                                            <TableHead>দোকান</TableHead>
-                                            <TableHead>ছবি</TableHead>
-                                            <TableHead>ক্রিয়া</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filteredItems.map((item) => (
-                                            <TableRow key={item.$id} className="hover:bg-muted/50">
-                                                <TableCell>
-                                                    <div className="text-2xl">
-                                                        {getCategoryIcon(item.type)}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="font-medium">{item.name}</TableCell>
-                                                <TableCell>
-                                                    <Badge variant="secondary">{item.type}</Badge>
-                                                </TableCell>
-                                                <TableCell className="font-mono">{item.design_code}</TableCell>
-                                                <TableCell className="font-bold">OMR {item.sell_price}</TableCell>
-                                                <TableCell className="font-bold">OMR {item.worker_price}</TableCell>
-                                                <TableCell>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {item.shopIds?.map((shopId) => {
-                                                            const shop = shops?.find(s => s.$id === shopId);
-                                                            return shop ? (
-                                                                <Badge key={shopId} variant="outline" className="text-xs">
-                                                                    <Store className="h-3 w-3 mr-1" />
-                                                                    {shop.name}
-                                                                </Badge>
-                                                            ) : null;
-                                                        })}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {item.images && item.images.length > 0 ? (
-                                                        <div className="flex gap-1">
-                                                            {item.images.slice(0, 3).map((imageId, index) => (
-                                                                <Image
-                                                                    key={index}
-                                                                    src={catalogService.getImageUrl(imageId)}
-                                                                    alt={`Image ${index + 1}`}
-                                                                    width={40}
-                                                                    height={40}
-                                                                    className="w-10 h-10 object-cover rounded border"
-                                                                />
-                                                            ))}
-                                                            {item.images.length > 3 && (
-                                                                <Badge variant="secondary" className="h-10 w-10 flex items-center justify-center">
-                                                                    +{item.images.length - 3}
-                                                                </Badge>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-muted-foreground text-sm">নেই</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex gap-2">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => handleEdit(item)}
-                                                            className="h-8 w-8 p-0"
-                                                        >
-                                                            <Edit2 className="h-4 w-4" />
-                                                        </Button>
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
-                                                                <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </Button>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>আইটেম মুছবেন?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>
-                                                                        "{item.name}" ক্যাটালগ আইটেম মুছে ফেলা হবে। এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না।
-                                                                    </AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>বাতিল</AlertDialogCancel>
-                                                                    <AlertDialogAction
-                                                                        onClick={() => deleteCatalogItem.mutate(item)}
-                                                                        className="bg-destructive hover:bg-destructive/90"
-                                                                    >
-                                                                        মুছুন
-                                                                    </AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
+                            <div className="w-full">
+                                <VirtualTable
+                                    data={filteredItems}
+                                    shops={shops || []}
+                                    onEdit={handleEdit}
+                                    onDelete={(item) => deleteCatalogItem.mutate(item)}
+                                    onImagePreview={openImagePreview}
+                                    isLoading={isLoading}
+                                />
                             </div>
                         )}
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Form Dialog */}
+            {/* Form Dialog - Simple & Clean */}
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-                <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="text-xl font-bold">
-                            {editingItem ? "ক্যাটালগ আইটেম সম্পাদনা" : "নতুন ক্যাটালগ আইটেম"}
+                <DialogContent className="max-w-[95vw] sm:max-w-[600px] max-h-[85vh] overflow-y-auto p-4 sm:p-6">
+                    <DialogHeader className="pb-4">
+                        <DialogTitle className="text-lg sm:text-xl font-bold">
+                            {editingItem ? "আইটেম সম্পাদনা" : "নতুন আইটেম"}
                         </DialogTitle>
                     </DialogHeader>
 
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
-                        {/* Shop Selection */}
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                        {/* Shop Selection - Simplified */}
                         <div className="space-y-2">
-                            <Label>দোকান নির্বাচন করুন *</Label>
-                            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                            <Label className="flex items-center gap-2 text-sm sm:text-base">
+                                <Store className="h-4 w-4" />
+                                দোকান নির্বাচন করুন *
+                            </Label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-32 overflow-y-auto p-2 sm:p-3 border rounded-lg bg-muted/20">
                                 {shops?.map((shop) => (
-                                    <div key={shop.$id} className="flex items-center space-x-2">
+                                    <div key={shop.$id} className="flex items-center space-x-2 p-2 hover:bg-background rounded transition-colors">
                                         <Controller
                                             name="shopIds"
                                             control={control}
@@ -471,27 +402,33 @@ export default function CatalogPage() {
                                                 />
                                             )}
                                         />
-                                        <Label className="text-sm font-normal">{shop.name}</Label>
+                                        <Label className="text-sm font-normal cursor-pointer flex-1 truncate">{shop.name}</Label>
                                     </div>
                                 ))}
                             </div>
                         </div>
 
-                        {/* Type Selection */}
+                        {/* Type Selection - Simplified */}
                         <div className="space-y-2">
-                            <Label>ধরন *</Label>
+                            <Label className="flex items-center gap-2 text-sm sm:text-base">
+                                <Tag className="h-4 w-4" />
+                                ধরন *
+                            </Label>
                             <Controller
                                 name="type"
                                 control={control}
                                 render={({ field }) => (
                                     <Select onValueChange={field.onChange} value={field.value}>
-                                        <SelectTrigger>
+                                        <SelectTrigger className="h-10 sm:h-12">
                                             <SelectValue placeholder="ধরন নির্বাচন করুন" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {CATEGORY_TYPES.map((type) => (
                                                 <SelectItem key={type} value={type}>
-                                                    {type}
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{getCategoryIcon(type)}</span>
+                                                        <span className="truncate">{type.replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim()}</span>
+                                                    </div>
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -500,50 +437,115 @@ export default function CatalogPage() {
                             />
                         </div>
 
-                        {/* Name and Design Code */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Name and Design Code - Simplified */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                             <div className="space-y-2">
-                                <Label>নাম *</Label>
-                                <Input {...register("name")} placeholder="পণ্যের নাম" />
+                                <Label className="flex items-center gap-2 text-sm sm:text-base">
+                                    <Tag className="h-4 w-4" />
+                                    নাম *
+                                </Label>
+                                <div className="relative">
+                                    <Input
+                                        {...register("name")}
+                                        placeholder="পণ্যের নাম লিখুন"
+                                        className="h-10 sm:h-12 text-sm sm:text-base pr-10 sm:pr-12"
+                                    />
+                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                                        <VoiceTypingButton
+                                            fieldName="name"
+                                            setValue={setValue}
+                                            currentValue={watch("name")}
+                                            placeholder="পণ্যের নাম"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                             <div className="space-y-2">
-                                <Label>ডিজাইন কোড *</Label>
-                                <Input {...register("design_code")} placeholder="ইউনিক ডিজাইন কোড" />
+                                <Label className="flex items-center gap-2 text-sm sm:text-base">
+                                    <Tag className="h-4 w-4" />
+                                    ডিজাইন কোড *
+                                </Label>
+                                <Input
+                                    {...register("design_code")}
+                                    placeholder="যেমন: DR-2024-001"
+                                    className="h-10 sm:h-12 font-mono text-sm sm:text-base"
+                                />
                             </div>
                         </div>
 
-                        {/* Description */}
+                        {/* Description - Simplified */}
                         <div className="space-y-2">
-                            <Label>বিবরণ</Label>
-                            <Textarea {...register("description")} placeholder="পণ্যের বিস্তারিত বিবরণ" rows={3} />
+                            <Label className="flex items-center gap-2 text-sm sm:text-base">
+                                <Tag className="h-4 w-4" />
+                                বিবরণ
+                            </Label>
+                            <div className="relative">
+                                <Textarea
+                                    {...register("description")}
+                                    placeholder="পণ্যের বিবরণ লিখুন"
+                                    rows={3}
+                                    className="resize-none pr-10 sm:pr-12 text-sm sm:text-base"
+                                />
+                                <div className="absolute right-2 top-2">
+                                    <VoiceTypingButton
+                                        fieldName="description"
+                                        setValue={setValue}
+                                        currentValue={watch("description")}
+                                        placeholder="পণ্যের বিবরণ"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Price */}
-                        <div className="space-y-2">
-                            <Label>মূল্য (OMR) *</Label>
-                            <Input type="number" step="0.01" {...register("sell_price")} placeholder="0.00" />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>মুজুরী (OMR) *</Label>
-                            <Input type="number" step="0.01" {...register("worker_price")} placeholder="0.00" />
+                        {/* Price - Simplified */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                            <div className="space-y-2">
+                                <Label className="flex items-center gap-2 text-sm sm:text-base">
+                                    <Tag className="h-4 w-4" />
+                                    মূল্য (OMR) *
+                                </Label>
+                                <Input
+                                    type="number"
+                                    step="0.01"
+                                    {...register("sell_price")}
+                                    placeholder="যেমন: ১২৫.৫০"
+                                    className="h-10 sm:h-12 text-sm sm:text-base"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="flex items-center gap-2 text-sm sm:text-base">
+                                    <Tag className="h-4 w-4" />
+                                    মুজুরী (OMR) *
+                                </Label>
+                                <Input
+                                    type="number"
+                                    step="0.01"
+                                    {...register("worker_price")}
+                                    placeholder="যেমন: ২৫.৭৫"
+                                    className="h-10 sm:h-12 text-sm sm:text-base"
+                                />
+                            </div>
                         </div>
 
-                        {/* Image Upload */}
+                        {/* Image Upload - Simplified */}
                         <div className="space-y-2">
-                            <Label>ছবি যোগ করুন</Label>
+                            <Label className="flex items-center gap-2 text-sm sm:text-base">
+                                <Upload className="h-4 w-4" />
+                                ছবি যোগ করুন
+                            </Label>
                             <div className="flex items-center gap-4">
                                 <Label
                                     htmlFor="image-upload"
-                                    className="flex flex-col items-center justify-center border-2 border-dashed rounded-md p-6 cursor-pointer hover:bg-accent/20 w-full"
+                                    className="flex flex-col items-center justify-center border-2 border-dashed rounded-md p-4 sm:p-6 cursor-pointer hover:bg-accent/20 w-full transition-all duration-200 hover:border-primary/50"
                                 >
-                                    <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                                    <Upload className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground mb-2" />
                                     <span className="text-sm text-center">
                                         {selectedImages.length > 0
                                             ? `${selectedImages.length}টি ছবি নির্বাচিত`
-                                            : "ছবি আপলোড করতে ক্লিক করুন"}
+                                            : "ছবি আপলোড করুন"}
                                     </span>
-                                    <span className="text-xs text-muted-foreground">
-                                        PNG, JPG, WEBP (একাধিক ছবি নির্বাচন করতে পারেন)
+                                    <span className="text-xs text-muted-foreground mt-1">
+                                        PNG, JPG, WEBP
                                     </span>
                                 </Label>
                                 <Input
@@ -569,6 +571,7 @@ export default function CatalogPage() {
                                                     width={100}
                                                     height={100}
                                                     className="w-full h-24 object-cover rounded border"
+                                                    loading="lazy"
                                                 />
                                                 <Button
                                                     type="button"
@@ -586,12 +589,52 @@ export default function CatalogPage() {
                             )}
                         </div>
 
-                        <DialogFooter>
-                            <Button type="submit" className="w-full sm:w-auto">
-                                {editingItem ? "আপডেট করুন" : "সংরক্ষণ করুন"}
-                            </Button>
+                        <DialogFooter className="pt-4 border-t">
+                            <div className="flex flex-col sm:flex-row justify-between w-full items-center gap-3 sm:gap-0">
+                                <div className="text-xs text-muted-foreground text-center sm:text-left">
+                                    ভয়েস টাইপিং ব্যবহার করুন
+                                </div>
+                                <Button
+                                    type="submit"
+                                    className="w-full sm:w-auto min-w-[100px] sm:min-w-[120px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                                >
+                                    {editingItem ? "আপডেট" : "সংরক্ষণ"}
+                                </Button>
+                            </div>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Image Preview Modal - Simple & Clean */}
+            <Dialog open={!!imagePreviewModal} onOpenChange={() => setImagePreviewModal(null)}>
+                <DialogContent className="max-w-[95vw] sm:max-w-[85vw] max-h-[90vh] p-2 sm:p-4">
+                    <DialogHeader className="pb-2">
+                        <DialogTitle className="text-lg sm:text-xl flex items-center gap-2">
+                            <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
+                            <span className="truncate">{imagePreviewModal?.title || "ছবি প্রিভিউ"}</span>
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex items-center justify-center min-h-[300px] sm:min-h-[400px] bg-muted/20 rounded-lg">
+                        {imagePreviewModal?.url ? (
+                            <Image
+                                src={imagePreviewModal.url}
+                                alt="Preview"
+                                width={600}
+                                height={400}
+                                className="max-w-full max-h-[70vh] object-contain rounded"
+                                loading="lazy"
+                                onError={(e) => {
+                                    console.error('Image failed to load');
+                                    e.target.style.display = 'none';
+                                }}
+                            />
+                        ) : (
+                            <div className="text-center text-muted-foreground py-8">
+                                ছবি লোড করতে সমস্যা হয়েছে
+                            </div>
+                        )}
+                    </div>
                 </DialogContent>
             </Dialog>
         </PageContainer>

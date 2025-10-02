@@ -95,7 +95,7 @@ export function FabricSalesTable({
         return {
           ...item,
           fabricName: fabric?.name || "অজানা ফ্যাব্রিক",
-          fabricColor: fabric?.color || "#3B82F6"
+          fabricColor: "#3B82F6"
         }
       })
 
@@ -477,7 +477,7 @@ export function FabricSalesTable({
                 {availableFabrics.map((fabric) => (
                   <SelectItem key={fabric.$id} value={fabric.$id}>
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full border" style={{ backgroundColor: fabric.color || '#3B82F6' }} />
+                      <div className="w-3 h-3 rounded-full border" style={{ backgroundColor: '#3B82F6' }} />
                       <span>{fabric.name}</span>
                     </div>
                   </SelectItem>
