@@ -4,11 +4,11 @@ import { useRouter, useParams } from "next/navigation"
 import { useAuthStore } from "@/store/auth-store"
 import { useFabricSale } from "@/services/fabric-sales-service"
 import PageContainer from "@/components/layout/page-container"
-import { EnhancedFabricSalesForm } from "@/components/fabric-sales-form"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ArrowLeft, Edit, AlertCircle, Loader2 } from "lucide-react"
+import { FabricSalesForm } from "@/components/fabric-sales-form"
 
 export default function EditFabricSalePage() {
     const router = useRouter()
@@ -105,7 +105,7 @@ export default function EditFabricSalePage() {
 
                 {/* Main Content */}
                 <div className="container mx-auto px-4 py-6">
-                    <EnhancedFabricSalesForm
+                    <FabricSalesForm
                         mode="edit"
                         initialData={sale}
                         saleId={saleId}

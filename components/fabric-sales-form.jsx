@@ -8,7 +8,6 @@ import { useAuthStore } from "@/store/auth-store"
 import { useShopStore } from "@/store/shop-store"
 import { useFabrics } from "@/services/fabric-service"
 import { useCreateFabricSale, useUpdateFabricSale } from "@/services/fabric-sales-service"
-import { useCustomers } from "@/services/customer-service"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -26,13 +25,11 @@ import {
     ShoppingBag,
     CreditCard,
     Wallet,
-    FileText,
     CheckCircle,
     AlertCircle,
     TrendingUp,
     Sparkles,
     DollarSign,
-    Users,
     Smartphone,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -55,7 +52,6 @@ const fabricSaleSchema = z.object({
             }),
         )
         .min(1, "কমপক্ষে একটি ফ্যাব্রিক যোগ করুন"),
-    customerId: z.string().optional(),
     paymentMethod: z.enum(["cash", "card", "online"]),
     paymentAmount: z
         .union([z.string(), z.number()])
@@ -75,11 +71,10 @@ const fabricSaleSchema = z.object({
     notes: z.string().optional(),
 })
 
-export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess, onCancel, saleId }) {
+export function FabricSalesForm({ mode = "page", initialData, onSuccess, onCancel, saleId }) {
     const { userProfile, selectedShopId } = useAuthStore()
     const { shops } = useShopStore()
     const { data: fabrics, isLoading: fabricsLoading } = useFabrics()
-    const { data: customers, isLoading: customersLoading } = useCustomers()
     const createFabricSale = useCreateFabricSale()
     const updateFabricSale = useUpdateFabricSale()
     const router = useRouter()
@@ -91,12 +86,10 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
     const form = useForm({
         resolver: zodResolver(fabricSaleSchema),
         defaultValues: {
-            saleItems: [{ fabricId: "", quantity: 1, unitPrice: "" }],
-            customerId: "",
+            saleItems: [{ fabricId: "", quantity: 2.5, unitPrice: "" }],
             paymentMethod: "cash",
             paymentAmount: "",
             discountAmount: "",
-            notes: "",
         },
     })
 
@@ -113,6 +106,53 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
     const watchedItems = form.watch("saleItems")
     const watchedPaymentAmount = form.watch("paymentAmount")
     const watchedDiscountAmount = form.watch("discountAmount")
+
+    // Watch all form values for comprehensive updates
+    const watchedValues = form.watch()
+
+    // More responsive calculation - runs immediately on any change
+    const calculateTotal = () => {
+        const totalAmount = watchedItems.reduce((total, item) => {
+            const quantity = Number.parseFloat(item.quantity) || 0
+            const unitPrice = Number.parseFloat(item.unitPrice) || 0
+            return total + (quantity * unitPrice)
+        }, 0)
+
+        const discountValue = Number.parseFloat(watchedDiscountAmount) || 0
+        return Math.max(0, totalAmount - discountValue)
+    }
+
+    // Auto-calculate payment amount based on items and discount - runs immediately on any change
+    useEffect(() => {
+        const discountedTotal = calculateTotal()
+
+        // Always keep payment amount in sync with calculated total
+        if (watchedItems.length > 0 && watchedItems.some(item => item.fabricId && item.quantity > 0)) {
+            const currentPaymentAmount = form.getValues("paymentAmount")
+            if (currentPaymentAmount !== discountedTotal && discountedTotal > 0) {
+                form.setValue("paymentAmount", discountedTotal)
+            }
+        }
+    }, [watchedItems, watchedDiscountAmount, form, calculateTotal])
+
+    // Debug logging for troubleshooting
+    useEffect(() => {
+        const totalAmount = watchedItems.reduce((total, item) => {
+            const quantity = Number.parseFloat(item.quantity) || 0
+            const unitPrice = Number.parseFloat(item.unitPrice) || 0
+            return total + quantity * unitPrice
+        }, 0)
+
+        const discountValue = Number.parseFloat(watchedDiscountAmount) || 0
+        const discountedTotal = Math.max(0, totalAmount - discountValue)
+
+        console.log("=== AUTO CALCULATION DEBUG ===");
+        console.log("Items:", watchedItems);
+        console.log("Total Amount:", totalAmount);
+        console.log("Discount:", discountValue);
+        console.log("Final Amount:", discountedTotal);
+        console.log("Payment Amount Field:", watchedPaymentAmount);
+    }, [watchedItems, watchedDiscountAmount, watchedPaymentAmount])
 
     const selectedShop = shops?.find((s) => s.$id === selectedShopId)
 
@@ -175,7 +215,7 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
             // Transform items to form structure
             const formItems = parsedItems.map((item) => ({
                 fabricId: item?.fabricId || "",
-                quantity: Number(item?.quantity) || 1,
+                quantity: Number(item?.quantity) || 2.5,
                 unitPrice: Number(item?.sale_price || item?.unitPrice) || 0,
             }))
 
@@ -183,12 +223,10 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
 
             // Prepare complete form data
             const formData = {
-                saleItems: formItems.length > 0 ? formItems : [{ fabricId: "", quantity: 1, unitPrice: "" }],
-                customerId: initialData.customersId || "",
+                saleItems: formItems.length > 0 ? formItems : [{ fabricId: "", quantity: 2.5, unitPrice: "" }],
                 paymentMethod: initialData.payment_method || "cash",
                 paymentAmount: Number(initialData.payment_amount || initialData.paid_amount || 0),
                 discountAmount: Number(initialData.discount_amount) || 0,
-                notes: initialData.notes || "",
             }
 
             console.log("Setting form data:", formData)
@@ -197,11 +235,9 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
             replace(formData.saleItems)
 
             // Set other form values
-            form.setValue("customerId", formData.customerId)
             form.setValue("paymentMethod", formData.paymentMethod)
             form.setValue("paymentAmount", formData.paymentAmount)
             form.setValue("discountAmount", formData.discountAmount)
-            form.setValue("notes", formData.notes)
 
             // Mark as loaded to prevent re-running
             setIsInitialDataLoaded(true)
@@ -214,13 +250,14 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
     const handleFabricChange = (index, fabricId) => {
         const fabric = fabrics?.find((f) => f.$id === fabricId)
         if (fabric) {
+            console.log(`Selected fabric: ${fabric.name}, Price: ${fabric.price_per_meter}`)
             form.setValue(`saleItems.${index}.unitPrice`, fabric.price_per_meter || "")
             form.setValue(`saleItems.${index}.fabricId`, fabricId)
         }
     }
 
     const handleAddItem = () => {
-        append({ fabricId: "", quantity: 1, unitPrice: "" })
+        append({ fabricId: "", quantity: 2.5, unitPrice: "" })
     }
 
     const handleRemoveItem = (index) => {
@@ -268,8 +305,6 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
                     totalAmount: totalAmount,
                     discountAmount: Number.parseFloat(data.discountAmount) || 0,
                     paymentAmount: Number.parseFloat(data.paymentAmount) || 0,
-                    notes: data.notes,
-                    customerId: data.customerId || null,
                 }
 
                 await updateFabricSale.mutateAsync({
@@ -291,7 +326,6 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
                 // Create new sale
                 const saleData = {
                     shopId: selectedShopId,
-                    customerId: data.customerId || null,
                     soldBy: userProfile.$id,
                     items: data.saleItems.map((item) => ({
                         fabricId: item.fabricId,
@@ -302,7 +336,6 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
                     payment_amount: Number.parseFloat(data.paymentAmount) || 0,
                     payment_method: data.paymentMethod,
                     discount_amount: Number.parseFloat(data.discountAmount) || 0,
-                    notes: data.notes,
                 }
 
                 await createFabricSale.mutateAsync(saleData)
@@ -314,12 +347,10 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
 
                     if (mode === "page") {
                         form.reset({
-                            saleItems: [{ fabricId: "", quantity: 1, unitPrice: "" }],
-                            customerId: "",
+                            saleItems: [{ fabricId: "", quantity: 2.5, unitPrice: "" }],
                             paymentMethod: "cash",
                             paymentAmount: "",
                             discountAmount: "",
-                            notes: "",
                         })
                         router.push("/dashboard/fabrics/sales")
                     } else if (onSuccess) {
@@ -333,7 +364,7 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
         }
     }
 
-    if (fabricsLoading || customersLoading) {
+    if (fabricsLoading) {
         return (
             <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/20">
                 {/* Header Skeleton */}
@@ -564,7 +595,11 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
     }
 
     return (
-        <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/20">
+        <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/20 relative overflow-hidden">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:24px_24px] opacity-40"></div>
+            <div className="absolute top-0 left-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/10 to-indigo-400/10 rounded-full blur-3xl -translate-y-48"></div>
+            <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gradient-to-r from-purple-400/10 to-pink-400/10 rounded-full blur-3xl translate-y-48"></div>
             {/* Success Modal */}
             <AnimatePresence>
                 {showSuccess && (
@@ -572,28 +607,42 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4"
                     >
                         <motion.div
-                            initial={{ scale: 0.8, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.8, opacity: 0 }}
-                            className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 p-8 rounded-3xl shadow-2xl max-w-md w-full text-center border-2 border-green-200 dark:border-green-800"
+                            initial={{ scale: 0.8, opacity: 0, rotateY: -90 }}
+                            animate={{ scale: 1, opacity: 1, rotateY: 0 }}
+                            exit={{ scale: 0.8, opacity: 0, rotateY: 90 }}
+                            transition={{ type: "spring", duration: 0.6 }}
+                            className="bg-gradient-to-br from-green-50 via-emerald-50 to-green-100 dark:from-green-950 dark:via-emerald-950 dark:to-green-900 p-6 sm:p-8 lg:p-10 rounded-3xl shadow-2xl max-w-sm sm:max-w-md w-full text-center border-2 border-green-200 dark:border-green-800 relative overflow-hidden"
                         >
+                            {/* Background Pattern */}
+                            <div className="absolute inset-0 bg-[linear-gradient(to_right,#10b98115_1px,transparent_1px),linear-gradient(to_bottom,#10b98115_1px,transparent_1px)] bg-[size:20px_20px] opacity-50"></div>
                             <motion.div
-                                initial={{ scale: 0 }}
-                                animate={{ scale: 1 }}
-                                transition={{ delay: 0.2, type: "spring" }}
-                                className="mx-auto w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mb-4"
+                                initial={{ scale: 0, rotate: -180 }}
+                                animate={{ scale: 1, rotate: 0 }}
+                                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                                className="mx-auto w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mb-4 sm:mb-6 shadow-2xl relative"
                             >
-                                <CheckCircle className="h-12 w-12 text-white" />
+                                <CheckCircle className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-white" />
+                                <motion.div
+                                    animate={{ scale: [1, 1.2, 1] }}
+                                    transition={{ duration: 2, repeat: Infinity }}
+                                    className="absolute inset-0 rounded-full bg-green-400/30"
+                                ></motion.div>
                             </motion.div>
-                            <h3 className="text-2xl font-bold text-green-800 dark:text-green-200 mb-2">
-                                {mode === "edit" ? "আপডেট সফল!" : "বিক্রয় সফল!"}
-                            </h3>
-                            <p className="text-green-600 dark:text-green-400">
-                                আপনার ফ্যাব্রিক {mode === "edit" ? "আপডেট" : "বিক্রয়"} সফলভাবে সম্পন্ন হয়েছে
-                            </p>
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.4 }}
+                            >
+                                <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-green-800 dark:text-green-200 mb-2 sm:mb-3">
+                                    {mode === "edit" ? "✨ আপডেট সফল!" : "🎉 বিক্রয় সফল!"}
+                                </h3>
+                                <p className="text-sm sm:text-base text-green-700 dark:text-green-300 leading-relaxed">
+                                    আপনার ফ্যাব্রিক {mode === "edit" ? "আপডেট" : "বিক্রয়"} সফলভাবে সম্পন্ন হয়েছে
+                                </p>
+                            </motion.div>
                         </motion.div>
                     </motion.div>
                 )}
@@ -602,121 +651,137 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
             {/* Header */}
             <div className="relative overflow-hidden border-b bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 dark:from-indigo-950 dark:via-blue-950 dark:to-indigo-900">
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff0a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0a_1px,transparent_1px)] bg-[size:20px_20px]"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent"></div>
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="relative container mx-auto px-4 py-6 lg:py-8"
+                    className="relative container mx-auto px-3 sm:px-4 py-4 sm:py-6 lg:py-8"
                 >
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => mode === "page" ? router.push("/dashboard/fabrics/sales") : onCancel?.()}
-                            className="text-white bg-blue-300 hover:bg-white/20"
+                            className="text-white bg-blue-300 hover:bg-white/20 hover:scale-110 transition-all duration-200"
                         >
-                            <ArrowLeft className="h-5 w-5 " />
+                            <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
                         </Button>
-                        <div className="flex items-center gap-4 flex-1">
-                            <motion.div
-                                whileHover={{ rotate: 360 }}
-                                transition={{ duration: 0.6 }}
-                                className="p-3 hidden md:block bg-white/20 backdrop-blur-sm rounded-2xl"
-                            >
-                                <Sparkles className="h-8 w-8  text-white" />
-                            </motion.div>
-                            <div className="flex flex-1 justify-between items-center gap-6">
-                                <div>
-                                    <h1 className="text-3xl lg:text-4xl font-black text-white">
-                                        ফ্যাব্রিক {mode === "edit" ? "এডিট" : "বিক্রয়"}
+
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 flex-1">
+                            {/* Page Description - Left Side */}
+                            <div className="flex-1 text-white min-w-0">
+                                <motion.div
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.1 }}
+                                >
+                                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1">
+                                        {mode === "edit" ? "ফ্যাব্রিক বিক্রয় এডিট" : "নতুন ফ্যাব্রিক বিক্রয়"}
                                     </h1>
-                                    <p className="text-indigo-100 mt-1">
-                                        {mode === "edit" ? "বিক্রয়ের তথ্য পরিবর্তন করুন" : "নতুন বিক্রয় তৈরি করুন"}
+                                    <p className="text-sm sm:text-base text-white/90 leading-relaxed">
+                                        ফ্যাব্রিক নির্বাচন করে পরিমাণ এবং দর লিখে বিক্রয় করুন
                                     </p>
-                                </div>
-                                {/* current shop name */}
-                                <div>
-                                    {selectedShop && (
-                                        <Alert className=" bg-white/10 text-indigo-100 border-0">
-                                            <TrendingUp className="h-4 w-4 text-indigo-100" />
-                                            <AlertTitle className="text-indigo-100">বর্তমান দোকান:</AlertTitle>
-                                            <AlertDescription className="text-indigo-100">
-                                                {selectedShop.name}
-                                            </AlertDescription>
-                                        </Alert>
+                                </motion.div>
+                            </div>
+
+                            {/* Current Shop Info - Right Side */}
+                            <motion.div
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="text-left sm:text-right self-start sm:self-center"
+                            >
+                                <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/20 shadow-lg hover:bg-white/15 transition-all duration-200">
+                                    <div className="text-xs text-white/70 uppercase tracking-wide mb-1">কারেন্ট শপ</div>
+                                    <div className="text-base sm:text-lg font-bold text-white">
+                                        {selectedShop?.name || "শপ নির্বাচন করুন"}
+                                    </div>
+                                    {selectedShop?.address && (
+                                        <div className="text-xs text-white/60 mt-1 hidden sm:block">
+                                            {selectedShop.address}
+                                        </div>
                                     )}
                                 </div>
+                            </motion.div>
 
-
-                            </div>
                         </div>
                     </div>
                 </motion.div>
             </div>
 
             {/* Main Content */}
-            <div className="container  mx-auto px-4 py-6 lg:py-8">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 relative z-10">
+                <div className="w-full max-w-7xl mx-auto">
                     {/* Form Section */}
                     <motion.div
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="lg:col-span-2"
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                        className="w-full"
                     >
-                        <Card className={`shadow-2xl border-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm transition-all duration-300 ${isSubmitting ? "opacity-90 scale-[0.99]" : "opacity-100 scale-100"
+                        <Card className={`shadow-2xl border-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl  dark:hover:bg-slate-900/95 ${isSubmitting ? "opacity-90 scale-[0.99] shadow-lg" : "opacity-100 "
                             }`}>
-                            <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/50 dark:to-blue-950/50 border-b">
-                                <CardTitle className="flex items-center gap-3 text-2xl">
-                                    <div className="p-2 bg-indigo-500 rounded-lg shadow-lg">
-                                        <ShoppingBag className="h-6 w-6 text-white" />
-                                    </div>
-                                    {mode === "edit" ? "বিক্রয়ের তথ্য" : "বিক্রয় তথ্য"}
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-6">
-                                <div className="space-y-6">
+                            
+                            <CardContent className="p-4 sm:p-6 lg:p-4">
+                                <div className="space-y-6 sm:space-y-8">
                                     {/* Fabric Items */}
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <Label className="text-lg font-bold flex items-center gap-2">
-                                                <Package className="h-5 w-5 text-indigo-500" />
-                                                ফ্যাব্রিক আইটেম
+                                    <div className="space-y-4 sm:space-y-6">
+                                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                                            <Label className="text-xl sm:text-2xl font-bold flex items-center gap-3 text-slate-800 dark:text-slate-200">
+                                                <motion.div
+                                                    className="p-2 bg-gradient-to-br from-indigo-100 to-blue-100 dark:from-indigo-900/50 dark:to-blue-900/50 rounded-lg"
+                                                >
+                                                    <Package className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                                                </motion.div>
+                                                ফ্যাব্রিক আইটেমসমূহ
                                             </Label>
-                                            <Button
-                                                type="button"
-                                                onClick={handleAddItem}
-                                                size="sm"
-                                                className="bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 shadow-lg"
+                                            <motion.div
+                                                whileTap={{ scale: 0.95 }}
                                             >
-                                                <Plus className="h-4 w-4 mr-2" />
-                                                আইটেম যোগ করুন
-                                            </Button>
+                                                <Button
+                                                    type="button"
+                                                    onClick={handleAddItem}
+                                                    size="default"
+                                                    className="cursor-pointer bg-gradient-to-r from-indigo-500 via-blue-500 to-indigo-600 hover:from-indigo-600 hover:via-blue-600 hover:to-indigo-700 shadow-xl hover:shadow-2xl transition-all duration-300 text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold"
+                                                >
+                                                    <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                                                    আইটেম যোগ করুন
+                                                </Button>
+                                            </motion.div>
                                         </div>
 
                                         <AnimatePresence>
                                             {saleItems.map((item, index) => (
                                                 <motion.div
                                                     key={item.id}
-                                                    initial={{ opacity: 0, y: 20 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    exit={{ opacity: 0, x: -100 }}
-                                                    transition={{ duration: 0.3 }}
-                                                    className="relative p-5 border-2 border-indigo-100 dark:border-indigo-900 rounded-2xl bg-gradient-to-br from-white to-indigo-50/30 dark:from-slate-900 dark:to-indigo-950/30 shadow-lg hover:shadow-xl transition-all duration-300"
+                                                    className="relative p-4 sm:p-6 border-2 border-indigo-100 dark:border-indigo-900 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-white via-white to-indigo-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/40 shadow-xl hover:shadow-2xl transition-all duration-500 group"
                                                 >
-                                                    <div className="absolute -top-3 -left-3 w-8 h-8 bg-gradient-to-br from-indigo-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+                                                    <motion.div
+                                                        className="absolute -top-3 -left-3 w-10 h-10 bg-gradient-to-br from-indigo-500 via-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold shadow-xl border-2 border-white dark:border-slate-900"
+                                                        whileHover={{ scale: 1.1, rotate: 5 }}
+                                                        animate={{ scale: [1, 1.05, 1] }}
+                                                        transition={{ duration: 2, repeat: Infinity }}
+                                                    >
                                                         {index + 1}
-                                                    </div>
+                                                    </motion.div>
 
                                                     {saleItems.length > 1 && (
-                                                        <Button
-                                                            type="button"
-                                                            onClick={() => handleRemoveItem(index)}
-                                                            className="absolute -top-2 -right-2 h-8 w-8 p-0 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg"
+                                                        <motion.div
+                                                            whileHover={{ scale: 1.1, rotate: 5 }}
+                                                            whileTap={{ scale: 0.9 }}
+                                                            className="absolute -top-2 -right-2 z-20"
                                                         >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
+                                                            <Button
+                                                                type="button"
+                                                                onClick={() => handleRemoveItem(index)}
+                                                                className="h-10 w-10 p-0 bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-full shadow-xl hover:shadow-2xl border-2 border-white dark:border-slate-900 transition-all duration-300"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </motion.div>
                                                     )}
 
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mt-4">
                                                         <div className="space-y-2">
                                                             <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                                                                 ফ্যাব্রিক *
@@ -803,7 +868,16 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
                                                                         step="0.1"
                                                                         className="h-11 border-2 border-indigo-200 dark:border-indigo-800 focus:border-indigo-500"
                                                                         {...field}
-                                                                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                                                        onChange={(e) => {
+                                                                            field.onChange(parseFloat(e.target.value) || 0)
+                                                                            // Trigger immediate calculation update
+                                                                            setTimeout(() => {
+                                                                                const newTotal = calculateTotal()
+                                                                                if (newTotal > 0) {
+                                                                                    form.setValue("paymentAmount", newTotal)
+                                                                                }
+                                                                            }, 0)
+                                                                        }}
                                                                     />
                                                                 )}
                                                             />
@@ -811,66 +885,96 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
 
                                                         <div className="space-y-2">
                                                             <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                                                                দর/গজ (৳) *
+                                                                দর/গজ (R) *
                                                             </Label>
                                                             <Controller
                                                                 name={`saleItems.${index}.unitPrice`}
                                                                 control={form.control}
                                                                 render={({ field }) => (
-                                                                    <Input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        step="0.01"
-                                                                        className="h-11 border-2 border-indigo-200 dark:border-indigo-800 focus:border-indigo-500"
-                                                                        {...field}
-                                                                        value={field.value === 0 || field.value === "" ? "" : field.value}
-                                                                        onChange={(e) => field.onChange(e.target.value === "" ? "" : parseFloat(e.target.value) || 0)}
-                                                                    />
+                                                                    <div className="relative">
+                                                                        <Input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="0.01"
+                                                                            className="h-11 border-2 border-indigo-200 dark:border-indigo-800 focus:border-indigo-500"
+                                                                            {...field}
+                                                                            value={field.value === 0 || field.value === "" ? "" : field.value}
+                                                                            onChange={(e) => {
+                                                                                field.onChange(e.target.value === "" ? "" : parseFloat(e.target.value) || 0)
+                                                                                // Trigger immediate calculation update
+                                                                                setTimeout(() => {
+                                                                                    const newTotal = calculateTotal()
+                                                                                    if (newTotal > 0) {
+                                                                                        form.setValue("paymentAmount", newTotal)
+                                                                                    }
+                                                                                }, 0)
+                                                                            }}
+                                                                        />
+                                                                    </div>
                                                                 )}
                                                             />
                                                         </div>
                                                     </div>
 
-                                                    <div className="mt-3 p-3 bg-indigo-50 dark:bg-indigo-950/50 rounded-lg border border-indigo-200 dark:border-indigo-800">
-                                                        <div className="flex justify-between items-center">
-                                                            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                                                                আইটেম মোট:
-                                                            </span>
-                                                            <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
-                                                                ৳{((Number.parseFloat(watchedItems[index]?.quantity) || 0) * (Number.parseFloat(watchedItems[index]?.unitPrice) || 0)).toFixed(2)}
-                                                            </span>
-                                                        </div>
-                                                    </div>
                                                 </motion.div>
                                             ))}
                                         </AnimatePresence>
                                     </div>
 
-                                    {/* Customer & Payment Info */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                                    {/* All Payment Fields in One Row */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                                         <div className="space-y-2">
                                             <Label className="text-sm font-semibold flex items-center gap-2">
-                                                <Users className="h-4 w-4 text-indigo-500" />
-                                                গ্রাহক (ঐচ্ছিক)
+                                                <DollarSign className="h-4 w-4 text-indigo-500" />
+                                                ডিসকাউন্ট (R)
                                             </Label>
                                             <Controller
-                                                name="customerId"
+                                                name="discountAmount"
                                                 control={form.control}
                                                 render={({ field }) => (
-                                                    <Select value={field.value} onValueChange={field.onChange}>
-                                                        <SelectTrigger className="h-11 border-2 border-indigo-200 dark:border-indigo-800">
-                                                            <SelectValue placeholder="নির্বাচন করুন" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {customers?.map((customer) => (
-                                                                <SelectItem key={customer.$id} value={customer.$id}>
-                                                                    <span className="truncate max-w-[200px]" title={`${customer.name} - ${customer.phone}`}>
-                                                                        {customer.name} - {customer.phone}
-                                                                    </span>
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        className="h-11 border-2 border-indigo-200 dark:border-indigo-800 text-base"
+                                                        {...field}
+                                                        value={field.value === 0 || field.value === "" ? "" : field.value}
+                                                        onChange={(e) => {
+                                                            field.onChange(e.target.value === "" ? "" : parseFloat(e.target.value) || 0)
+                                                            // Trigger immediate calculation update
+                                                            setTimeout(() => {
+                                                                const newTotal = calculateTotal()
+                                                                if (newTotal >= 0) {
+                                                                    form.setValue("paymentAmount", newTotal)
+                                                                }
+                                                            }, 0)
+                                                        }}
+                                                        placeholder="0.00"
+                                                    />
+                                                )}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-semibold flex items-center gap-2">
+                                                <DollarSign className="h-4 w-4 text-indigo-500" />
+                                                পরিশোধিত (R) *
+                                            </Label>
+                                            <Controller
+                                                name="paymentAmount"
+                                                control={form.control}
+                                                render={({ field }) => (
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        className="h-11 border-2 border-indigo-200 dark:border-indigo-800 text-base font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20"
+                                                        {...field}
+                                                        value={field.value === 0 || field.value === "" ? "" : field.value}
+                                                        onChange={(e) => field.onChange(e.target.value === "" ? "" : parseFloat(e.target.value) || 0)}
+                                                        placeholder="0.00"
+                                                    />
                                                 )}
                                             />
                                         </div>
@@ -885,7 +989,7 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
                                                 control={form.control}
                                                 render={({ field }) => (
                                                     <Select value={field.value} onValueChange={field.onChange}>
-                                                        <SelectTrigger className="h-11 border-2 border-indigo-200 dark:border-indigo-800">
+                                                        <SelectTrigger className="h-10 border-2 border-indigo-200 dark:border-indigo-800">
                                                             <SelectValue />
                                                         </SelectTrigger>
                                                         <SelectContent>
@@ -914,94 +1018,23 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label className="text-sm font-semibold flex items-center gap-2">
-                                                <DollarSign className="h-4 w-4 text-indigo-500" />
-                                                ডিসকাউন্ট (৳)
-                                            </Label>
-                                            <Controller
-                                                name="discountAmount"
-                                                control={form.control}
-                                                render={({ field }) => (
-                                                    <Input
-                                                        type="number"
-                                                        min="0"
-                                                        step="0.01"
-                                                        className="h-12 border-2 border-indigo-200 dark:border-indigo-800 text-lg font-semibold"
-                                                        {...field}
-                                                        value={field.value === 0 || field.value === "" ? "" : field.value}
-                                                        onChange={(e) => field.onChange(e.target.value === "" ? "" : parseFloat(e.target.value) || 0)}
-                                                        placeholder=""
-                                                    />
-                                                )}
-                                            />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label className="text-sm font-semibold flex items-center gap-2">
-                                                <DollarSign className="h-4 w-4 text-indigo-500" />
-                                                পরিশোধিত Amount (৳) *
-                                            </Label>
-                                            <Controller
-                                                name="paymentAmount"
-                                                control={form.control}
-                                                render={({ field }) => (
-                                                    <Input
-                                                        type="number"
-                                                        min="0"
-                                                        step="0.01"
-                                                        className="h-12 border-2 border-indigo-200 dark:border-indigo-800 text-lg font-semibold"
-                                                        {...field}
-                                                        value={field.value === 0 || field.value === "" ? "" : field.value}
-                                                        onChange={(e) => field.onChange(e.target.value === "" ? "" : parseFloat(e.target.value) || 0)}
-                                                        placeholder=""
-                                                    />
-                                                )}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label className="text-sm font-semibold flex items-center gap-2">
-                                            <FileText className="h-4 w-4 text-indigo-500" />
-                                            নোট (ঐচ্ছিক)
-                                        </Label>
-                                        <Controller
-                                            name="notes"
-                                            control={form.control}
-                                            render={({ field }) => (
-                                                <textarea
-                                                    {...field}
-                                                    rows={3}
-                                                    className="w-full p-3 border-2 border-indigo-200 dark:border-indigo-800 rounded-lg text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:bg-slate-900"
-                                                    placeholder="বিশেষ নির্দেশনা..."
-                                                />
-                                            )}
-                                        />
-                                    </div>
-
                                     <motion.div
-                                        whileHover={!isSubmitting ? { scale: 1.02 } : {}}
-                                        whileTap={!isSubmitting ? { scale: 0.98 } : {}}
-                                        className="w-full relative"
+                                        className="w-full relative group"
                                     >
                                         {/* Instant Loading Feedback */}
                                         {isSubmitting && (
                                             <motion.div
                                                 initial={{ opacity: 0, scale: 0.95 }}
-                                                animate={{ opacity: 0.1, scale: 1 }}
-                                                transition={{ duration: 0.15 }}
                                                 className="absolute inset-0 bg-white rounded-2xl z-5"
                                             />
                                         )}
                                         <Button
                                             onClick={form.handleSubmit(onSubmit)}
                                             disabled={isSubmitting}
-                                            className={`w-full h-16 text-xl font-bold rounded-2xl shadow-2xl transition-all duration-200 relative overflow-hidden ${isSubmitting
-                                                ? "bg-gradient-to-r from-gray-400 via-gray-500 to-gray-400 cursor-not-allowed opacity-80 shadow-inner"
-                                                : "bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-600 hover:from-indigo-700 hover:via-blue-700 hover:to-indigo-700 hover:shadow-indigo-500/50"
-                                                } text-white`}
+                                            className={`w-full cursor-pointer h-14 sm:h-16 lg:h-18 text-lg sm:text-xl lg:text-2xl font-bold rounded-2xl shadow-2xl transition-all duration-300 relative overflow-hidden group ${isSubmitting
+                                                ? "bg-gradient-to-r from-gray-400 via-gray-500 to-gray-400 cursor-not-allowed opacity-80 shadow-inner scale-95"
+                                                : "bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600 hover:from-indigo-700 hover:via-blue-700 hover:to-purple-700 hover:shadow-indigo-500/50 "
+                                                } text-white border-0`}
                                         >
                                             <div className="flex items-center justify-center gap-3">
                                                 {isSubmitting ? (
@@ -1052,101 +1085,6 @@ export function EnhancedFabricSalesForm({ mode = "page", initialData, onSuccess,
                                 </div>
                             </CardContent>
                         </Card>
-                    </motion.div>
-
-                    {/* Summary Section */}
-                    <motion.div
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="lg:col-span-1"
-                    >
-                        <div className="sticky top-6 space-y-4">
-                            <Card className={`shadow-2xl border-0 bg-gradient-to-br from-indigo-600 to-blue-600 text-white overflow-hidden transition-all duration-300 ${isSubmitting ? "opacity-80" : "opacity-100"
-                                }`}>
-                                <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff0a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0a_1px,transparent_1px)] bg-[size:20px_20px]"></div>
-                                <CardHeader className="relative border-b border-white/10">
-                                    <CardTitle className="text-2xl font-bold">বিক্রয় সারাংশ</CardTitle>
-                                </CardHeader>
-                                <CardContent className="relative space-y-4 pt-6">
-                                    <div className="space-y-3">
-                                        {watchedItems.map((item, index) => {
-                                            const fabric = fabrics?.find(f => f.$id === item.fabricId)
-                                            return fabric ? (
-                                                <motion.div
-                                                    key={index}
-                                                    initial={{ opacity: 0, x: -10 }}
-                                                    animate={{ opacity: 1, x: 0 }}
-                                                    transition={{ delay: index * 0.1 }}
-                                                    className="flex justify-between items-center p-3 bg-white/10 backdrop-blur-sm rounded-lg hover:bg-white/20 transition-all"
-                                                >
-                                                    <div>
-                                                        <div className="font-semibold">{fabric.name}</div>
-                                                        <div className="text-sm text-indigo-100">
-                                                            {(Number.parseFloat(item.quantity) || 0)} গজ × ৳{(Number.parseFloat(item.unitPrice) || 0)}
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-lg font-bold">
-                                                        ৳{((Number.parseFloat(item.quantity) || 0) * (Number.parseFloat(item.unitPrice) || 0)).toFixed(2)}
-                                                    </div>
-                                                </motion.div>
-                                            ) : null
-                                        })}
-                                    </div>
-
-                                    <div className="h-px bg-white/20 my-4"></div>
-
-                                    <div className="space-y-3 text-lg">
-                                        <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-                                            <span className="font-semibold">মোট Amount:</span>
-                                            <span className="text-2xl font-black">৳{totalAmount.toFixed(2)}</span>
-                                        </div>
-                                        {discountValue > 0 && (
-                                            <div className="flex justify-between items-center p-3 bg-red-500/20 rounded-lg">
-                                                <span className="font-semibold text-red-200">ডিসকাউন্ট:</span>
-                                                <span className="text-xl font-bold text-red-300">
-                                                    -৳{discountValue.toFixed(2)}
-                                                </span>
-                                            </div>
-                                        )}
-                                        <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-                                            <span className="font-semibold">নেট Amount:</span>
-                                            <span className="text-2xl font-black">৳{discountedTotal.toFixed(2)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-                                            <span className="font-semibold">পরিশোধিত:</span>
-                                            <span className="text-xl font-bold text-green-200">
-                                                ৳{paymentValue.toFixed(2)}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between items-center p-4 bg-white/20 backdrop-blur-sm rounded-xl shadow-lg">
-                                            <span className="font-bold text-lg">বাকি:</span>
-                                            <span className={`text-2xl font-black ${dueAmount > 0 ? 'text-yellow-200' : 'text-green-200'}`}>
-                                                ৳{dueAmount.toFixed(2)}
-                                            </span>
-                                        </div>
-
-                                        {/* Payment Status Indicator */}
-                                        <div className="flex justify-between items-center p-3 bg-white/10 backdrop-blur-sm rounded-lg">
-                                            <span className="font-semibold">স্ট্যাটাস:</span>
-                                            <Badge className={`${isPaid ? 'bg-green-500/20 text-green-200 border-green-400/30' : 'bg-yellow-500/20 text-yellow-200 border-yellow-400/30'}`}>
-                                                {isPaid ? 'পরিশোধিত' : 'বাকি'}
-                                            </Badge>
-                                        </div>
-                                    </div>
-
-                                    {dueAmount > 0 && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            className="flex items-start gap-2 p-3 bg-yellow-500/20 border border-yellow-300/30 rounded-lg backdrop-blur-sm"
-                                        >
-                                            <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5 text-yellow-200" />
-                                            <p className="text-sm text-yellow-100">বাকি পেমেন্ট রয়েছে</p>
-                                        </motion.div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </div>
                     </motion.div>
                 </div>
             </div>
