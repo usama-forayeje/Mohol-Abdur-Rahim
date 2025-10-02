@@ -42,9 +42,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState, useEffect } from "react";
+import { VoiceTypingButton } from "@/components/ui/voice-typing-button";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Pencil, Trash2, Plus, MapPin, Phone, Store } from "lucide-react";
+import { Pencil, Trash2, Plus, MapPin, Phone, Store, Tag } from "lucide-react";
 
 const shopSchema = z.object({
   name: z.string().min(2, "দোকানের নাম কমপক্ষে ২ অক্ষর হতে হবে"),
@@ -124,9 +125,9 @@ function ShopPage() {
 
   return (
     <PageContainer>
-      <div>
+      <div className="w-full">
         {/* Header Section with Title and Create Button */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div className="flex flex-col  sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div className="flex items-center gap-2">
             <Store className="h-6 w-6 text-primary" />
             <h1 className="text-2xl font-bold">দোকান ব্যবস্থাপনা</h1>
@@ -143,37 +144,58 @@ function ShopPage() {
                 নতুন দোকান যোগ করুন
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle className="text-xl">
-                  {editShop ? "দোকান সম্পাদনা করুন" : "নতুন দোকান তৈরি করুন"}
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader className="space-y-3 pb-4">
+                <DialogTitle className="flex items-center gap-3 text-2xl">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-primary shadow-md">
+                    <Store className="h-6 w-6 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold">
+                      {editShop ? "দোকান সম্পাদনা করুন" : "নতুন দোকান তৈরি করুন"}
+                    </div>
+                    <div className="text-sm font-normal text-muted-foreground">
+                      {editShop
+                        ? "নিচের ফর্মে প্রয়োজনীয় তথ্য পরিবর্তন করুন"
+                        : "নিচের ফর্ম পূরণ করে নতুন দোকান যোগ করুন"}
+                    </div>
+                  </div>
                 </DialogTitle>
-                <DialogDescription>
-                  {editShop
-                    ? "নিচের ফর্মে প্রয়োজনীয় তথ্য পরিবর্তন করুন"
-                    : "নিচের ফর্ম পূরণ করে নতুন দোকান যোগ করুন"}
-                </DialogDescription>
               </DialogHeader>
 
               <Form {...form}>
                 <form
                   onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-4 mt-4"
+                  className="space-y-6 mt-6"
                 >
                   <FormField
                     control={form.control}
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>দোকানের নাম *</FormLabel>
+                        <FormLabel className="flex items-center gap-2">
+                          <Store className="h-4 w-4" />
+                          দোকানের নাম *
+                        </FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="দোকানের নাম লিখুন"
-                            {...field}
-                            disabled={
-                              createShop.isPending || updateShop.isPending
-                            }
-                          />
+                          <div className="relative">
+                            <Input
+                              placeholder="দোকানের নাম লিখুন (যেমন: আমার ফ্যাব্রিক্স, স্টাইলিশ ক্লথিং)"
+                              className="h-12 text-base pr-12"
+                              {...field}
+                              disabled={
+                                createShop.isPending || updateShop.isPending
+                              }
+                            />
+                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                              <VoiceTypingButton
+                                fieldName="name"
+                                setValue={form.setValue}
+                                currentValue={field.value}
+                                placeholder="দোকানের নাম"
+                              />
+                            </div>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -185,15 +207,29 @@ function ShopPage() {
                     name="address"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>ঠিকানা *</FormLabel>
+                        <FormLabel className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4" />
+                          ঠিকানা *
+                        </FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="দোকানের সম্পূর্ণ ঠিকানা লিখুন"
-                            {...field}
-                            disabled={
-                              createShop.isPending || updateShop.isPending
-                            }
-                          />
+                          <div className="relative">
+                            <Input
+                              placeholder="দোকানের সম্পূর্ণ ঠিকানা লিখুন (যেমন: মিরপুর-১০, ঢাকা)"
+                              className="h-12 text-base pr-12"
+                              {...field}
+                              disabled={
+                                createShop.isPending || updateShop.isPending
+                              }
+                            />
+                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                              <VoiceTypingButton
+                                fieldName="address"
+                                setValue={form.setValue}
+                                currentValue={field.value}
+                                placeholder="দোকানের ঠিকানা"
+                              />
+                            </div>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -205,15 +241,29 @@ function ShopPage() {
                     name="contact"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>যোগাযোগ নম্বর</FormLabel>
+                        <FormLabel className="flex items-center gap-2">
+                          <Phone className="h-4 w-4" />
+                          যোগাযোগ নম্বর
+                        </FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="যোগাযোগের নম্বর লিখুন"
-                            {...field}
-                            disabled={
-                              createShop.isPending || updateShop.isPending
-                            }
-                          />
+                          <div className="relative">
+                            <Input
+                              placeholder="যোগাযোগের নম্বর লিখুন (যেমন: ০১৭১২৩৪৫৬৭৮)"
+                              className="h-12 text-base pr-12"
+                              {...field}
+                              disabled={
+                                createShop.isPending || updateShop.isPending
+                              }
+                            />
+                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                              <VoiceTypingButton
+                                fieldName="contact"
+                                setValue={form.setValue}
+                                currentValue={field.value}
+                                placeholder="যোগাযোগ নম্বর"
+                              />
+                            </div>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -238,8 +288,8 @@ function ShopPage() {
                       {createShop.isPending || updateShop.isPending
                         ? "প্রসেস হচ্ছে..."
                         : editShop
-                        ? "আপডেট করুন"
-                        : "তৈরি করুন"}
+                          ? "আপডেট করুন"
+                          : "তৈরি করুন"}
                     </Button>
                   </div>
                 </form>

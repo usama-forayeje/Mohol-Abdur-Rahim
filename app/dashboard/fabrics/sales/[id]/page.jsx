@@ -7,7 +7,7 @@ import PageContainer from "@/components/layout/page-container"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ArrowLeft, Edit, AlertCircle, Loader2 } from "lucide-react"
+import {  AlertCircle, Loader2 } from "lucide-react"
 import { FabricSalesForm } from "@/components/fabric-sales-form"
 
 export default function EditFabricSalePage() {
@@ -74,35 +74,6 @@ export default function EditFabricSalePage() {
     return (
         <PageContainer>
             <div className="min-h-screen">
-                {/* Header */}
-                <div className="border-b bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-950 dark:to-blue-950">
-                    <div className="container mx-auto px-4 py-6">
-                        <div className="flex items-center gap-4">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => router.push("/dashboard/fabrics/sales")}
-                                className="text-white hover:bg-white/20"
-                            >
-                                <ArrowLeft className="h-5 w-5" />
-                            </Button>
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                                    <Edit className="h-6 w-6 text-white" />
-                                </div>
-                                <div>
-                                    <h1 className="text-2xl font-bold text-white">
-                                        বিক্রয় এডিট করুন
-                                    </h1>
-                                    <p className="text-indigo-100 text-sm mt-1">
-                                        বিক্রয়ের তথ্য পরিবর্তন করুন
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 {/* Main Content */}
                 <div className="container mx-auto px-4 py-6">
                     <FabricSalesForm

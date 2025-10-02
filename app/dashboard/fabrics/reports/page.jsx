@@ -1558,4 +1558,4 @@ export default function FabricsReportsPage() {
       </div>
     </PageContainer>
   )
-}o
+}
