@@ -148,21 +148,21 @@ export default function AppSidebar() {
       {
         title: "ইনভেন্টরি",
         icon: Package,
-        roles: ["superAdmin", "admin", "manager"],
+        roles: ["superAdmin", "admin"],
         permission: "MANAGE_FABRICS",
         items: [
           {
             title: "কাপড় স্টক",
             icon: Package,
             url: "/dashboard/inventory/fabrics",
-            roles: ["superAdmin", "admin", "manager"],
+            roles: ["superAdmin", "admin"],
             permission: "MANAGE_FABRICS",
           },
           {
             title: "ক্রয়ের রশীদ",
             icon: FileText,
             url: "/dashboard/inventory/purchase-invoice",
-            roles: ["superAdmin", "admin", "manager"],
+            roles: ["superAdmin", "admin"],
             permission: "MANAGE_FABRICS",
           },
         ],

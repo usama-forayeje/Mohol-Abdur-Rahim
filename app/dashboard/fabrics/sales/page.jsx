@@ -15,7 +15,6 @@ import { useFabrics } from "@/services/fabric-service"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 
-
 export default function FabricSalesPage() {
   const { selectedShopId, userProfile } = useAuthStore()
   const router = useRouter()
@@ -36,39 +35,41 @@ export default function FabricSalesPage() {
   }, {})
 
   // Enrich sales data with customer information
-  const enrichedSalesData = salesData.map(sale => {
+  const enrichedSalesData = salesData.map((sale) => {
     let items = []
 
     // Handle different item formats from database
     if (Array.isArray(sale.items)) {
       // If items is already an array
-      items = sale.items.map(item => {
-        // If item is a string, parse it
-        if (typeof item === 'string') {
-          try {
-            return JSON.parse(item)
-          } catch (e) {
-            console.error('Error parsing item string:', e)
-            return null
+      items = sale.items
+        .map((item) => {
+          // If item is a string, parse it
+          if (typeof item === "string") {
+            try {
+              return JSON.parse(item)
+            } catch (e) {
+              console.error("Error parsing item string:", e)
+              return null
+            }
           }
-        }
-        return item
-      }).filter(Boolean)
-    } else if (typeof sale.items === 'string') {
+          return item
+        })
+        .filter(Boolean)
+    } else if (typeof sale.items === "string") {
       // If items is a single string, try to parse
       try {
         const parsed = JSON.parse(sale.items)
         items = Array.isArray(parsed) ? parsed : [parsed]
       } catch (e) {
-        console.error('Error parsing items string:', e)
+        console.error("Error parsing items string:", e)
       }
     }
 
     // Normalize items - handle both sale_price and unitPrice
-    items = items.map(item => ({
-      fabricId: item?.fabricId || '',
+    items = items.map((item) => ({
+      fabricId: item?.fabricId || "",
       quantity: item?.quantity || 0,
-      sale_price: item?.sale_price || item?.unitPrice || 0
+      sale_price: item?.sale_price || item?.unitPrice || 0,
     }))
 
     return {
@@ -136,7 +137,7 @@ export default function FabricSalesPage() {
   if (error) {
     return (
       <PageContainer>
-        <div className="min-h-screen  flex items-center justify-center p-6">
+        <div className="min-h-screen flex items-center justify-center p-6">
           <Card className="max-w-md w-full">
             <CardContent className="p-6">
               <Alert variant="destructive">
@@ -145,12 +146,7 @@ export default function FabricSalesPage() {
                   <div className="space-y-3">
                     <p className="font-semibold">বিক্রয় তথ্য লোড করতে সমস্যা হয়েছে</p>
                     <p className="text-sm">{error.message}</p>
-                    <Button
-                      onClick={() => refetch()}
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                    >
+                    <Button onClick={() => refetch()} variant="outline" size="sm" className="w-full">
                       আবার চেষ্টা করুন
                     </Button>
                   </div>
@@ -216,32 +212,35 @@ export default function FabricSalesPage() {
       <div className="min-h-screen w-full">
         {/* Header */}
         <div className="border-b bg-card">
-          <div className="container mx-auto p-4 sm:p-6">
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-              <div className="space-y-2 flex-1">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <ShoppingCart className="h-6 w-6 text-primary" />
+          <div className="container mx-auto p-3 sm:p-4 lg:p-6">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 sm:gap-4">
+              <div className="space-y-2 flex-1 w-full">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                   </div>
-                  <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold">ফ্যাব্রিক বিক্রয়</h1>
-                    <p className="text-sm text-muted-foreground mt-0.5">
+                  <div className="min-w-0 flex-1">
+                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold truncate">ফ্যাব্রিক বিক্রয়</h1>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 line-clamp-1">
                       আপনার সমস্ত ফ্যাব্রিক বিক্রয় ব্যবস্থাপনা করুন
                     </p>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2 mt-3">
-                  <Badge variant="secondary" className="gap-1.5">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-2 sm:mt-3">
+                  <Badge variant="secondary" className="gap-1 sm:gap-1.5 text-xs">
                     <Calendar className="h-3 w-3" />
-                    {new Date().toLocaleDateString("bn-BD")}
+                    <span className="hidden xs:inline">{new Date().toLocaleDateString("bn-BD")}</span>
+                    <span className="xs:hidden">
+                      {new Date().toLocaleDateString("bn-BD", { day: "numeric", month: "short" })}
+                    </span>
                   </Badge>
-                  <Badge variant="outline" className="gap-1.5">
+                  <Badge variant="outline" className="gap-1 sm:gap-1.5 text-xs">
                     <TrendingUp className="h-3 w-3" />
-                    {enrichedSalesData.length} টি বিক্রয়
+                    {enrichedSalesData.length} টি
                   </Badge>
                   {enrichedSalesData.length > 0 && (
-                    <Badge className="gap-1.5 bg-green-100 text-green-800 border-green-200 hover:bg-green-100">
+                    <Badge className="gap-1 sm:gap-1.5 bg-green-100 text-green-800 border-green-200 hover:bg-green-100 text-xs">
                       <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
                       সক্রিয়
                     </Badge>
@@ -249,12 +248,8 @@ export default function FabricSalesPage() {
                 </div>
               </div>
 
-              <Button
-                onClick={handleCreateSale}
-                size="lg"
-                className="w-full sm:w-auto gap-2"
-              >
-                <Plus className="h-5 w-5" />
+              <Button onClick={handleCreateSale} size="default" className="w-full lg:w-auto gap-2 text-sm sm:text-base">
+                <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
                 নতুন বিক্রয়
               </Button>
             </div>
@@ -262,7 +257,7 @@ export default function FabricSalesPage() {
         </div>
 
         {/* Main Content */}
-        <div className="container mx-auto p-4 sm:p-6">
+        <div className="container mx-auto p-3 sm:p-4 lg:p-6">
           <FabricSalesTable
             salesData={enrichedSalesData}
             onEdit={handleEdit}

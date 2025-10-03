@@ -61,11 +61,11 @@
   --border: oklch(0.929 0.013 255.508);
   --input: oklch(0.929 0.013 255.508);
   --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --chart-1: oklch(0.65 0.15 142);
+  --chart-2: oklch(0.7 0.18 135);
+  --chart-3: oklch(0.55 0.12 148);
+  --chart-4: oklch(0.75 0.2 130);
+  --chart-5: oklch(0.6 0.14 155);
   --sidebar: oklch(0.984 0.003 247.858);
   --sidebar-foreground: oklch(0.129 0.042 264.695);
   --sidebar-primary: oklch(0.208 0.042 265.755);
@@ -95,11 +95,11 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  --chart-1: oklch(0.6 0.18 142);
+  --chart-2: oklch(0.65 0.2 135);
+  --chart-3: oklch(0.7 0.15 148);
+  --chart-4: oklch(0.55 0.16 130);
+  --chart-5: oklch(0.65 0.19 155);
   --sidebar: oklch(0.208 0.042 265.755);
   --sidebar-foreground: oklch(0.984 0.003 247.858);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -116,6 +116,110 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Force chart lines to use green colors */
+  .recharts-area-curve {
+    stroke: #22c55e !important;
+  }
+
+  .recharts-line-curve {
+    stroke: #22c55e !important;
+  }
+
+  .recharts-area {
+    stroke: #22c55e !important;
+  }
+
+  .recharts-line {
+    stroke: #22c55e !important;
+  }
+
+  [data-chart] .recharts-area-curve {
+    stroke: #22c55e !important;
+  }
+
+  [data-chart] .recharts-line-curve {
+    stroke: #22c55e !important;
+  }
+
+  [data-chart] .recharts-area {
+    stroke: #22c55e !important;
+  }
+
+  [data-chart] .recharts-line {
+    stroke: #22c55e !important;
+  }
+
+  /* Target all chart paths and lines */
+  [data-chart] path {
+    stroke: #22c55e !important;
+  }
+
+  [data-chart] .recharts-area path {
+    stroke: #22c55e !important;
+  }
+
+  /* Specific area chart styling */
+  [data-chart] .recharts-area-area {
+    stroke: #22c55e !important;
+  }
+
+  /* Target all SVG elements within charts */
+  [data-chart] svg path {
+    stroke: #22c55e !important;
+  }
+
+  [data-chart] svg .recharts-area-curve {
+    stroke: #22c55e !important;
+  }
+
+  /* Force all chart strokes to be green */
+  [data-chart] .recharts-curve {
+    stroke: #22c55e !important;
+  }
+
+  /* Target the chart wrapper */
+  [data-slot="chart"] .recharts-surface {
+    background-color: transparent;
+  }
+
+  /* Ensure all chart lines are green */
+  [data-slot="chart"] .recharts-area-curve,
+  [data-slot="chart"] .recharts-line-curve,
+  [data-slot="chart"] path {
+    stroke: #22c55e !important;
+  }
+
+  /* Fix chart fill colors - target the actual filled areas */
+  [data-slot="chart"] .recharts-area-area {
+    fill: #22c55e !important;
+  }
+
+  [data-slot="chart"] .recharts-bar-rectangle {
+    fill: #22c55e !important;
+  }
+
+  [data-slot="chart"] .recharts-pie-sector {
+    fill: #22c55e !important;
+  }
+
+  /* Target all chart fill elements */
+  [data-slot="chart"] rect {
+    fill: #22c55e !important;
+  }
+
+  /* Specific chart area fills */
+  [data-chart] .recharts-area-area {
+    fill: #22c55e !important;
+  }
+
+  [data-chart] .recharts-bar-rectangle {
+    fill: #22c55e !important;
+  }
+
+  [data-chart] .recharts-pie-sector {
+    fill: #22c55e !important;
   }
 }
 

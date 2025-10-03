@@ -88,46 +88,6 @@ const invoiceSchema = z.object({
   file: z.any().optional(),
 })
 
-// Bengali translations
-const translations = {
-  title: "ক্রয় ইনভয়েস",
-  description: "আপনার ক্রয় ইনভয়েসগুলি দক্ষতার সাথে পরিচালনা করুন",
-  addInvoice: "ইনভয়েস যোগ করুন",
-  totalInvoices: "মোট ইনভয়েস",
-  totalAmount: "মোট পরিমাণ",
-  thisMonth: "এই মাস",
-  invoiceRecords: "ইনভয়েস রেকর্ড",
-  allInvoices: "সমস্ত আপনার ক্রয় ইনভয়েস এক জায়গায়",
-  searchPlaceholder: "ইনভয়েস বা সরবরাহকারী অনুসন্ধান করুন...",
-  noInvoices: "কোন ইনভয়েস পাওয়া যায়নি",
-  noInvoicesDesc: "আপনার প্রথম ইনভয়েস যোগ করে শুরু করুন",
-  invoiceNumber: "ইনভয়েস নম্বর *",
-  invoiceDate: "ইনভয়েস তারিখ *",
-  supplierName: "সরবরাহকারীর নাম *",
-  totalAmountLabel: "মোট পরিমাণ (OMR) *",
-  invoiceAttachment: "ইনভয়েস সংযুক্তি",
-  clickToUpload: "আপলোড করতে ক্লিক করুন বা ফাইলটি এখানে ড্র্যাগ করুন",
-  fileTypes: "PNG, JPG, PDF 10MB পর্যন্ত",
-  preview: "প্রিভিউ",
-  cancel: "বাতিল",
-  updateInvoice: "ইনভয়েস আপডেট করুন",
-  addInvoiceButton: "ইনভয়েস যোগ করুন",
-  editInvoice: "ইনভয়েস সম্পাদনা করুন",
-  editInvoiceDesc: "নিচে আপনার ইনভয়েস তথ্য আপডেট করুন",
-  newInvoice: "নতুন ইনভয়েস যোগ করুন",
-  newInvoiceDesc: "আপনার নতুন ক্রয় ইনভয়েসের বিবরণ পূরণ করুন",
-  areYouSure: "আপনি কি নিশ্চিত?",
-  deleteConfirm: "ইনভয়েস #{{number}} থেকে {{supplier}} মুছে ফেলা হবে। এই কর্মটি পূর্বাবস্থায় ফেরানো যাবে না।",
-  delete: "মুছুন",
-  invoicePreview: "ইনভয়েস ইমেজ প্রিভিউ",
-  actions: "ক্রিয়াসমূহ",
-  amount: "পরিমাণ (OMR)",
-  attachment: "সংযুক্তি",
-  date: "তারিখ",
-  supplier: "সরবরাহকারী",
-}
-
-
 export default function PurchaseInvoicePage() {
   const [editingInvoice, setEditingInvoice] = useState(null)
   const [search, setSearch] = useState("")
