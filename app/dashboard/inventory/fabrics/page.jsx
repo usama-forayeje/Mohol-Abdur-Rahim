@@ -8,7 +8,6 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  useInfiniteQuery,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -73,12 +72,8 @@ import {
   DollarSign,
   NotebookIcon,
   Search,
-  Filter,
   AlertTriangle,
   X,
-  Ruler,
-  Palette,
-  LayoutGrid,
   Download,
   Tag,
 } from "lucide-react";
@@ -1352,5 +1347,6 @@ export default function FabricPage() {
         </DialogContent>
       </Dialog>
     </PageContainer>
+
   );
 }

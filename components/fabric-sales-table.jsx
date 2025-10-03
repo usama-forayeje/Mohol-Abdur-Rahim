@@ -17,23 +17,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-   Search,
-   Eye,
-   Filter,
-   Calendar,
-   DollarSign,
-   TrendingUp,
-   ArrowUpDown,
-   ChevronLeft,
-   ChevronRight,
-   Download,
-   Users,
-   Edit,
-   Trash2,
-   User,
-   ShoppingCart,
-   Package,
- } from "lucide-react"
+  Search,
+  Eye,
+  Filter,
+  DollarSign,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Edit,
+  Trash2,
+  User,
+  ShoppingCart,
+  Package,
+} from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,14 +43,14 @@ import {
 } from "@/components/ui/alert-dialog"
 
 export function FabricSalesTable({
-   salesData = [],
-   selectedFabricFilter,
-   setSelectedFabricFilter,
-   availableFabrics = [],
-   userRole = "staff", 
-   onEdit,
-   onDelete
- }) {
+  salesData = [],
+  selectedFabricFilter,
+  setSelectedFabricFilter,
+  availableFabrics = [],
+  userRole = "staff",
+  onEdit,
+  onDelete,
+}) {
   const [sorting, setSorting] = useState([])
   const [columnFilters, setColumnFilters] = useState([])
   const [globalFilter, setGlobalFilter] = useState("")
@@ -79,23 +76,23 @@ export function FabricSalesTable({
 
     return salesData.map((sale) => {
       let parsedItems = []
-      if (typeof sale.items === 'string') {
+      if (typeof sale.items === "string") {
         try {
           parsedItems = JSON.parse(sale.items)
         } catch (e) {
-          console.error('Error parsing items:', e)
+          console.error("Error parsing items:", e)
         }
       } else if (Array.isArray(sale.items)) {
         parsedItems = sale.items
       }
 
       // Enrich items with fabric data
-      const enrichedItems = parsedItems.map(item => {
+      const enrichedItems = parsedItems.map((item) => {
         const fabric = fabricMap[item.fabricId]
         return {
           ...item,
           fabricName: fabric?.name || "অজানা ফ্যাব্রিক",
-          fabricColor: "#3B82F6"
+          fabricColor: "#3B82F6",
         }
       })
 
@@ -118,7 +115,7 @@ export function FabricSalesTable({
     // Fabric filtering
     if (selectedFabricFilter && selectedFabricFilter !== "all") {
       filtered = filtered.filter((sale) => {
-        return sale.items.some(item => item.fabricId === selectedFabricFilter)
+        return sale.items.some((item) => item.fabricId === selectedFabricFilter)
       })
     }
 
@@ -159,7 +156,7 @@ export function FabricSalesTable({
     return {
       totalSales,
       totalPaymentAmount,
-      totalQuantityInYards: Math.round(totalQuantityInYards * 100) / 100 // Round to 2 decimal places
+      totalQuantityInYards: Math.round(totalQuantityInYards * 100) / 100, // Round to 2 decimal places
     }
   }, [filteredData])
 
@@ -200,10 +197,12 @@ export function FabricSalesTable({
           const date = row.getValue("sale_date")
           return (
             <div className="font-medium text-sm">
-              {date ? new Date(date).toLocaleDateString("bn-BD", {
-                day: 'numeric',
-                month: 'short',
-              }) : "-"}
+              {date
+                ? new Date(date).toLocaleDateString("bn-BD", {
+                    day: "numeric",
+                    month: "short",
+                  })
+                : "-"}
             </div>
           )
         },
@@ -229,10 +228,7 @@ export function FabricSalesTable({
                     className="w-3 h-3 rounded-full border flex-shrink-0"
                     style={{ backgroundColor: item.fabricColor }}
                   />
-                  <span
-                    className="text-sm font-medium flex-1 truncate max-w-[120px] relative"
-                    title={item.fabricName}
-                  >
+                  <span className="text-sm font-medium flex-1 truncate max-w-[120px] relative" title={item.fabricName}>
                     {item.fabricName}
                   </span>
                   <Badge variant="secondary" className="text-xs flex-shrink-0">
@@ -277,9 +273,7 @@ export function FabricSalesTable({
                 ৳{finalAmount.toLocaleString("bn-BD")}
               </div>
               {discountAmount > 0 && (
-                <div className="text-xs text-red-600">
-                  (ডিস: ৳{discountAmount.toLocaleString("bn-BD")})
-                </div>
+                <div className="text-xs text-red-600">(ডিস: ৳{discountAmount.toLocaleString("bn-BD")})</div>
               )}
             </div>
           )
@@ -306,10 +300,7 @@ export function FabricSalesTable({
         cell: ({ row }) => {
           const status = row.getValue("payment_status") || "pending"
           return (
-            <Badge
-              variant={status === "paid" ? "default" : "secondary"}
-              className="font-medium"
-            >
+            <Badge variant={status === "paid" ? "default" : "secondary"} className="font-medium">
               {status === "paid" ? "পরিশোধিত" : "বাকি"}
             </Badge>
           )
@@ -322,12 +313,7 @@ export function FabricSalesTable({
           const sale = row.original
           return (
             <div className="flex gap-1.5">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleViewDetails(sale)}
-                className="h-8 px-2.5"
-              >
+              <Button variant="outline" size="sm" onClick={() => handleViewDetails(sale)} className="h-8 px-2.5">
                 <Eye className="h-3.5 w-3.5" />
               </Button>
               {canModify && (
@@ -355,7 +341,7 @@ export function FabricSalesTable({
         },
       },
     ],
-    [onEdit, canModify]
+    [onEdit, canModify],
   )
 
   const table = useReactTable({
@@ -383,23 +369,21 @@ export function FabricSalesTable({
   return (
     <div className="space-y-4">
       {/* Premium Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
         {/* Total Revenue Card */}
         <Card className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 dark:from-emerald-950/30 dark:via-green-950/30 dark:to-teal-950/30">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5"></div>
-          <CardContent className="p-6 relative">
+          <CardContent className="p-4 sm:p-6 relative">
             <div className="flex items-center justify-between">
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">মোট আয়</p>
-                <p className="text-3xl font-black text-emerald-800 dark:text-emerald-200">
+              <div className="space-y-1 sm:space-y-2">
+                <p className="text-xs sm:text-sm font-medium text-emerald-700 dark:text-emerald-300">মোট আয়</p>
+                <p className="text-2xl sm:text-3xl font-black text-emerald-800 dark:text-emerald-200">
                   ৳{summaryStats.totalPaymentAmount.toLocaleString("bn-BD")}
                 </p>
-                <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                  Total Revenue Collected
-                </p>
+                <p className="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400">Total Revenue Collected</p>
               </div>
-              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                <DollarSign className="h-7 w-7 text-white" />
+              <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <DollarSign className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
               </div>
             </div>
           </CardContent>
@@ -408,40 +392,36 @@ export function FabricSalesTable({
         {/* Total Orders Card */}
         <Card className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-950/30 dark:via-indigo-950/30 dark:to-purple-950/30">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5"></div>
-          <CardContent className="p-6 relative">
+          <CardContent className="p-4 sm:p-6 relative">
             <div className="flex items-center justify-between">
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-blue-700 dark:text-blue-300">মোট অর্ডার</p>
-                <p className="text-3xl font-black text-blue-800 dark:text-blue-200">
+              <div className="space-y-1 sm:space-y-2">
+                <p className="text-xs sm:text-sm font-medium text-blue-700 dark:text-blue-300">মোট অর্ডার</p>
+                <p className="text-2xl sm:text-3xl font-black text-blue-800 dark:text-blue-200">
                   {summaryStats.totalSales}
                 </p>
-                <p className="text-xs text-blue-600 dark:text-blue-400">
-                  Total Sales Orders
-                </p>
+                <p className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400">Total Sales Orders</p>
               </div>
-              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                <ShoppingCart className="h-7 w-7 text-white" />
+              <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <ShoppingCart className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Total Yards Card */}
-        <Card className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 dark:from-amber-950/30 dark:via-orange-950/30 dark:to-yellow-950/30 sm:col-span-2 lg:col-span-1">
+        <Card className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 dark:from-amber-950/30 dark:via-orange-950/30 dark:to-yellow-950/30 md:col-span-2 xl:col-span-1">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-orange-500/5"></div>
-          <CardContent className="p-6 relative">
+          <CardContent className="p-4 sm:p-6 relative">
             <div className="flex items-center justify-between">
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-amber-700 dark:text-amber-300">মোট গজ</p>
-                <p className="text-3xl font-black text-amber-800 dark:text-amber-200">
+              <div className="space-y-1 sm:space-y-2">
+                <p className="text-xs sm:text-sm font-medium text-amber-700 dark:text-amber-300">মোট গজ</p>
+                <p className="text-2xl sm:text-3xl font-black text-amber-800 dark:text-amber-200">
                   {summaryStats.totalQuantityInYards}
                 </p>
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  Total Yards Sold
-                </p>
+                <p className="text-[10px] sm:text-xs text-amber-600 dark:text-amber-400">Total Yards Sold</p>
               </div>
-              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                <Package className="h-7 w-7 text-white" />
+              <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <Package className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
               </div>
             </div>
           </CardContent>
@@ -450,15 +430,16 @@ export function FabricSalesTable({
 
       {/* Filters */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
+        <CardHeader className="pb-3 px-4 sm:px-6">
+          <CardTitle className="text-sm sm:text-base flex items-center gap-2">
             <Filter className="h-4 w-4" />
             ফিল্টার এবং সার্চ
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col lg:flex-row gap-3">
-            <div className="relative flex-1">
+        <CardContent className="px-4 sm:px-6">
+          <div className="flex flex-col gap-2 sm:gap-3">
+            {/* Search bar - full width on mobile */}
+            <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="বিক্রয় খুঁজুন..."
@@ -468,55 +449,58 @@ export function FabricSalesTable({
               />
             </div>
 
-            <Select value={selectedFabricFilter || "all"} onValueChange={setSelectedFabricFilter}>
-              <SelectTrigger className="w-full lg:w-48">
-                <SelectValue placeholder="ফ্যাব্রিক" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">সব ফ্যাব্রিক</SelectItem>
-                {availableFabrics.map((fabric) => (
-                  <SelectItem key={fabric.$id} value={fabric.$id}>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full border" style={{ backgroundColor: '#3B82F6' }} />
-                      <span>{fabric.name}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Filter row - stacks on mobile, horizontal on tablet+ */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+              <Select value={selectedFabricFilter || "all"} onValueChange={setSelectedFabricFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="ফ্যাব্রিক" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">সব ফ্যাব্রিক</SelectItem>
+                  {availableFabrics.map((fabric) => (
+                    <SelectItem key={fabric.$id} value={fabric.$id}>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full border" style={{ backgroundColor: "#3B82F6" }} />
+                        <span className="truncate">{fabric.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="w-full lg:w-36">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">সব তারিখ</SelectItem>
-                <SelectItem value="today">আজ</SelectItem>
-                <SelectItem value="week">এই সপ্তাহ</SelectItem>
-                <SelectItem value="month">এই মাস</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={dateFilter} onValueChange={setDateFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">সব তারিখ</SelectItem>
+                  <SelectItem value="today">আজ</SelectItem>
+                  <SelectItem value="week">এই সপ্তাহ</SelectItem>
+                  <SelectItem value="month">এই মাস</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select
-              value={table.getColumn("payment_status")?.getFilterValue() ?? "all"}
-              onValueChange={(value) => {
-                table.getColumn("payment_status")?.setFilterValue(value === "all" ? undefined : value)
-              }}
-            >
-              <SelectTrigger className="w-full lg:w-36">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">সব স্ট্যাটাস</SelectItem>
-                <SelectItem value="paid">পরিশোধিত</SelectItem>
-                <SelectItem value="pending">বাকি</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select
+                value={table.getColumn("payment_status")?.getFilterValue() ?? "all"}
+                onValueChange={(value) => {
+                  table.getColumn("payment_status")?.setFilterValue(value === "all" ? undefined : value)
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">সব স্ট্যাটাস</SelectItem>
+                  <SelectItem value="paid">পরিশোধিত</SelectItem>
+                  <SelectItem value="pending">বাকি</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Button variant="outline" size="default" className="flex-1 lg:flex-none gap-2">
-              <Download className="h-4 w-4" />
-              <span className="hidden lg:inline">এক্সপোর্ট</span>
-            </Button>
+              <Button variant="outline" size="default" className="w-full gap-2 bg-transparent">
+                <Download className="h-4 w-4" />
+                <span>এক্সপোর্ট</span>
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -529,10 +513,8 @@ export function FabricSalesTable({
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    <TableHead key={header.id} className="whitespace-nowrap">
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -543,7 +525,7 @@ export function FabricSalesTable({
                 table.getRowModel().rows.map((row) => (
                   <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
+                      <TableCell key={cell.id} className="whitespace-nowrap">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
@@ -553,7 +535,7 @@ export function FabricSalesTable({
                 <TableRow>
                   <TableCell colSpan={columns.length} className="h-24 text-center">
                     <div className="flex flex-col items-center gap-2">
-                      <p className="text-muted-foreground">কোনো বিক্রয় পাওয়া যায়নি</p>
+                      <p className="text-muted-foreground text-sm">কোনো বিক্রয় পাওয়া যায়নি</p>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -563,10 +545,10 @@ export function FabricSalesTable({
         </div>
 
         {/* Pagination */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t">
-          <div className="text-sm text-muted-foreground">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3 sm:px-4 py-3 border-t">
+          <div className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
             পৃষ্ঠা {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
-            ({table.getFilteredRowModel().rows.length} টি এন্ট্রি)
+            <span className="hidden sm:inline"> ({table.getFilteredRowModel().rows.length} টি এন্ট্রি)</span>
           </div>
           <div className="flex gap-2">
             <Button
@@ -574,18 +556,20 @@ export function FabricSalesTable({
               size="sm"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
+              className="text-xs sm:text-sm"
             >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              পূর্ববর্তী
+              <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+              <span className="hidden sm:inline">পূর্ববর্তী</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
+              className="text-xs sm:text-sm"
             >
-              পরবর্তী
-              <ChevronRight className="h-4 w-4 ml-1" />
+              <span className="hidden sm:inline">পরবর্তী</span>
+              <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 sm:ml-1" />
             </Button>
           </div>
         </div>
@@ -593,19 +577,16 @@ export function FabricSalesTable({
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>বিক্রয় মুছে ফেলবেন?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-base sm:text-lg">বিক্রয় মুছে ফেলবেন?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
               এই বিক্রয়টি স্থায়ীভাবে মুছে যাবে। এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না।
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>বাতিল</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              className="bg-red-600 hover:bg-red-700"
-            >
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto">বাতিল</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="w-full sm:w-auto bg-red-600 hover:bg-red-700">
               মুছে ফেলুন
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -614,49 +595,49 @@ export function FabricSalesTable({
 
       {/* Sale Details Modal */}
       <AlertDialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
-        <AlertDialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-3">
-              <Eye className="h-5 w-5 text-blue-600" />
+            <AlertDialogTitle className="flex items-center gap-2 sm:gap-3 text-base sm:text-lg">
+              <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
               বিক্রয়ের বিস্তারিত তথ্য
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              বিক্রয়ের সম্পূর্ণ তথ্য দেখুন
-            </AlertDialogDescription>
+            <AlertDialogDescription className="text-xs sm:text-sm">বিক্রয়ের সম্পূর্ণ তথ্য দেখুন</AlertDialogDescription>
           </AlertDialogHeader>
 
           {selectedSale && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Sale Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-muted-foreground">বিক্রয় আইডি</Label>
-                  <p className="font-mono text-sm bg-muted p-2 rounded">{selectedSale.$id}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-1 sm:space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium text-muted-foreground">বিক্রয় আইডি</Label>
+                  <p className="font-mono text-xs sm:text-sm bg-muted p-2 rounded break-all">{selectedSale.$id}</p>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-muted-foreground">তারিখ</Label>
-                  <p className="font-medium">
-                    {selectedSale.sale_date ? new Date(selectedSale.sale_date).toLocaleDateString("bn-BD", {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric'
-                    }) : "N/A"}
+                <div className="space-y-1 sm:space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium text-muted-foreground">তারিখ</Label>
+                  <p className="font-medium text-sm sm:text-base">
+                    {selectedSale.sale_date
+                      ? new Date(selectedSale.sale_date).toLocaleDateString("bn-BD", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })
+                      : "N/A"}
                   </p>
                 </div>
               </div>
 
               {/* Customer Info */}
               {selectedSale.customer_name && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-muted-foreground">গ্রাহক</Label>
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                      <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <div className="space-y-1 sm:space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium text-muted-foreground">গ্রাহক</Label>
+                  <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-muted rounded-lg">
+                    <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                      <User className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400" />
                     </div>
-                    <div>
-                      <p className="font-medium">{selectedSale.customer_name}</p>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm sm:text-base truncate">{selectedSale.customer_name}</p>
                       {selectedSale.customer_phone && (
-                        <p className="text-sm text-muted-foreground">{selectedSale.customer_phone}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">{selectedSale.customer_phone}</p>
                       )}
                     </div>
                   </div>
@@ -664,22 +645,24 @@ export function FabricSalesTable({
               )}
 
               {/* Items */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-muted-foreground">ফ্যাব্রিক আইটেম</Label>
-                <div className="space-y-3">
+              <div className="space-y-1 sm:space-y-2">
+                <Label className="text-xs sm:text-sm font-medium text-muted-foreground">ফ্যাব্রিক আইটেম</Label>
+                <div className="space-y-2 sm:space-y-3">
                   {selectedSale.items?.map((item, index) => (
-                    <div key={index} className="p-4 border rounded-lg space-y-3">
-                      <div className="flex items-center gap-3">
+                    <div key={index} className="p-3 sm:p-4 border rounded-lg space-y-2 sm:space-y-3">
+                      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                         <div
-                          className="w-4 h-4 rounded-full border flex-shrink-0"
+                          className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border flex-shrink-0"
                           style={{ backgroundColor: item.fabricColor }}
                         />
-                        <span className="font-medium">{item.fabricName}</span>
+                        <span className="font-medium text-sm sm:text-base flex-1 min-w-0 truncate">
+                          {item.fabricName}
+                        </span>
                         <Badge variant="secondary" className="text-xs">
                           {item.quantity}গজ
                         </Badge>
                       </div>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
                         <div>
                           <span className="text-muted-foreground">পরিমাণ: </span>
                           <span className="font-medium">{item.quantity} গজ</span>
@@ -689,7 +672,7 @@ export function FabricSalesTable({
                           <span className="font-medium">৳{item.sale_price}</span>
                         </div>
                       </div>
-                      <div className="text-right font-semibold text-green-600">
+                      <div className="text-right font-semibold text-sm sm:text-base text-green-600">
                         মোট: ৳{(item.quantity * item.sale_price).toLocaleString("bn-BD")}
                       </div>
                     </div>
@@ -698,26 +681,34 @@ export function FabricSalesTable({
               </div>
 
               {/* Payment Summary */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-muted-foreground">পেমেন্ট সারাংশ</Label>
-                <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/50 dark:to-blue-950/50 rounded-lg space-y-2">
-                  <div className="flex justify-between">
+              <div className="space-y-1 sm:space-y-2">
+                <Label className="text-xs sm:text-sm font-medium text-muted-foreground">পেমেন্ট সারাংশ</Label>
+                <div className="p-3 sm:p-4 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/50 dark:to-blue-950/50 rounded-lg space-y-2">
+                  <div className="flex justify-between text-sm sm:text-base">
                     <span>মোট Amount:</span>
                     <span className="font-bold">৳{Number(selectedSale.total_amount || 0).toLocaleString("bn-BD")}</span>
                   </div>
                   {Number(selectedSale.discount_amount || 0) > 0 && (
-                    <div className="flex justify-between text-red-600">
+                    <div className="flex justify-between text-xs sm:text-sm text-red-600">
                       <span>ডিসকাউন্ট:</span>
                       <span>-৳{Number(selectedSale.discount_amount || 0).toLocaleString("bn-BD")}</span>
                     </div>
                   )}
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-sm sm:text-base">
                     <span>পরিশোধিত:</span>
-                    <span className="font-bold text-green-600">৳{Number(selectedSale.payment_amount || 0).toLocaleString("bn-BD")}</span>
+                    <span className="font-bold text-green-600">
+                      ৳{Number(selectedSale.payment_amount || 0).toLocaleString("bn-BD")}
+                    </span>
                   </div>
-                  <div className="flex justify-between text-lg font-bold pt-2 border-t">
+                  <div className="flex justify-between items-center text-base sm:text-lg font-bold pt-2 border-t">
                     <span>স্ট্যাটাস:</span>
-                    <Badge className={selectedSale.payment_status === "paid" ? "bg-green-500/20 text-green-700 border-green-400/30" : "bg-yellow-500/20 text-yellow-700 border-yellow-400/30"}>
+                    <Badge
+                      className={
+                        selectedSale.payment_status === "paid"
+                          ? "bg-green-500/20 text-green-700 border-green-400/30"
+                          : "bg-yellow-500/20 text-yellow-700 border-yellow-400/30"
+                      }
+                    >
                       {selectedSale.payment_status === "paid" ? "পরিশোধিত" : "বাকি"}
                     </Badge>
                   </div>
@@ -726,16 +717,16 @@ export function FabricSalesTable({
 
               {/* Notes */}
               {selectedSale.notes && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-muted-foreground">নোট</Label>
-                  <p className="p-3 bg-muted rounded-lg text-sm">{selectedSale.notes}</p>
+                <div className="space-y-1 sm:space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium text-muted-foreground">নোট</Label>
+                  <p className="p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm">{selectedSale.notes}</p>
                 </div>
               )}
             </div>
           )}
 
           <AlertDialogFooter>
-            <AlertDialogCancel>বন্ধ করুন</AlertDialogCancel>
+            <AlertDialogCancel className="w-full sm:w-auto">বন্ধ করুন</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

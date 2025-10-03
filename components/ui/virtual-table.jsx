@@ -40,220 +40,237 @@ export function VirtualTable({
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent text-xs sm:text-sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent text-xs min-w-0"
                     onClick={() => column.toggleSorting()}
                 >
-                    নাম
-                    {column.getIsSorted() === "asc" && <ArrowUp className="ml-1 h-3 w-3" />}
-                    {column.getIsSorted() === "desc" && <ArrowDown className="ml-1 h-3 w-3" />}
-                    {!column.getIsSorted() && <ArrowUpDown className="ml-1 h-3 w-3" />}
+                    <span className="truncate">নাম</span>
+                    {column.getIsSorted() === "asc" && <ArrowUp className="ml-1 h-2 w-2 flex-shrink-0" />}
+                    {column.getIsSorted() === "desc" && <ArrowDown className="ml-1 h-2 w-2 flex-shrink-0" />}
+                    {!column.getIsSorted() && <ArrowUpDown className="ml-1 h-2 w-2 flex-shrink-0" />}
                 </Button>
             ),
             cell: ({ getValue, row }) => (
-                <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm sm:text-base truncate max-w-[120px] sm:max-w-none">{getValue()}</span>
-                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 hidden sm:inline-flex">
-                        🎤
-                    </Badge>
+                <div className="flex items-center gap-1 min-w-0">
+                    <span className="font-medium text-xs truncate flex-1 min-w-0" title={getValue()}>
+                        {getValue()}
+                    </span>
                 </div>
             ),
-            size: window.innerWidth < 640 ? 150 : 200,
+            size: 150,
+            minSize: 100,
+            maxSize: 180,
         }),
         columnHelper.accessor("type", {
             header: ({ column }) => (
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    className="h-auto p-0 font-semibold hover:bg-transparent text-xs min-w-0"
                     onClick={() => column.toggleSorting()}
                 >
-                    ধরন
-                    {column.getIsSorted() === "asc" && <ArrowUp className="ml-1 h-3 w-3" />}
-                    {column.getIsSorted() === "desc" && <ArrowDown className="ml-1 h-3 w-3" />}
-                    {!column.getIsSorted() && <ArrowUpDown className="ml-1 h-3 w-3" />}
+                    <span className="truncate">ধরন</span>
+                    {column.getIsSorted() === "asc" && <ArrowUp className="ml-1 h-2 w-2 flex-shrink-0" />}
+                    {column.getIsSorted() === "desc" && <ArrowDown className="ml-1 h-2 w-2 flex-shrink-0" />}
+                    {!column.getIsSorted() && <ArrowUpDown className="ml-1 h-2 w-2 flex-shrink-0" />}
                 </Button>
             ),
             cell: ({ getValue }) => {
-                const getCategoryIcon = (type) => {
-                    const emojiMatch = type.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u);
-                    return emojiMatch ? emojiMatch[0] : "📦";
-                };
+                const typeText = getValue().replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
 
                 return (
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                        {getCategoryIcon(getValue())}
-                        {getValue().replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim()}
-                    </Badge>
+                    <span className="text-xs truncate inline-block max-w-full" title={typeText}>
+                        {typeText}
+                    </span>
                 );
             },
-            size: 150,
+            size: 120,
+            minSize: 80,
+            maxSize: 140,
         }),
         columnHelper.accessor("design_code", {
             header: ({ column }) => (
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    className="h-auto p-0 font-semibold hover:bg-transparent text-xs min-w-0"
                     onClick={() => column.toggleSorting()}
                 >
-                    ডিজাইন কোড
-                    {column.getIsSorted() === "asc" && <ArrowUp className="ml-1 h-3 w-3" />}
-                    {column.getIsSorted() === "desc" && <ArrowDown className="ml-1 h-3 w-3" />}
-                    {!column.getIsSorted() && <ArrowUpDown className="ml-1 h-3 w-3" />}
+                    <span className="truncate">কোড</span>
+                    {column.getIsSorted() === "asc" && <ArrowUp className="ml-1 h-2 w-2 flex-shrink-0" />}
+                    {column.getIsSorted() === "desc" && <ArrowDown className="ml-1 h-2 w-2 flex-shrink-0" />}
+                    {!column.getIsSorted() && <ArrowUpDown className="ml-1 h-2 w-2 flex-shrink-0" />}
                 </Button>
             ),
             cell: ({ getValue }) => (
-                <div className="flex items-center gap-1 font-mono">
+                <span className="text-xs font-mono truncate inline-block max-w-full" title={getValue()}>
                     {getValue()}
-                    <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
-                        🆔
-                    </Badge>
-                </div>
+                </span>
             ),
-            size: 120,
+            size: 90,
+            minSize: 60,
+            maxSize: 100,
         }),
         columnHelper.accessor("sell_price", {
             header: ({ column }) => (
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    className="h-auto p-0 font-semibold hover:bg-transparent text-xs min-w-0"
                     onClick={() => column.toggleSorting()}
                 >
-                    মূল্য
-                    {column.getIsSorted() === "asc" && <ArrowUp className="ml-1 h-3 w-3" />}
-                    {column.getIsSorted() === "desc" && <ArrowDown className="ml-1 h-3 w-3" />}
-                    {!column.getIsSorted() && <ArrowUpDown className="ml-1 h-3 w-3" />}
+                    <span className="truncate">মূল্য</span>
+                    {column.getIsSorted() === "asc" && <ArrowUp className="ml-1 h-2 w-2 flex-shrink-0" />}
+                    {column.getIsSorted() === "desc" && <ArrowDown className="ml-1 h-2 w-2 flex-shrink-0" />}
+                    {!column.getIsSorted() && <ArrowUpDown className="ml-1 h-2 w-2 flex-shrink-0" />}
                 </Button>
             ),
             cell: ({ getValue }) => (
-                <div className="flex items-center gap-1 font-bold">
+                <span className="text-xs font-bold truncate inline-block max-w-full">
                     OMR {getValue()}
-                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                        বিক্রয়
-                    </Badge>
-                </div>
+                </span>
             ),
-            size: 100,
+            size: 80,
+            minSize: 60,
+            maxSize: 90,
         }),
         columnHelper.accessor("worker_price", {
             header: ({ column }) => (
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    className="h-auto p-0 font-semibold hover:bg-transparent text-xs min-w-0"
                     onClick={() => column.toggleSorting()}
                 >
-                    মুজুরী
-                    {column.getIsSorted() === "asc" && <ArrowUp className="ml-1 h-3 w-3" />}
-                    {column.getIsSorted() === "desc" && <ArrowDown className="ml-1 h-3 w-3" />}
-                    {!column.getIsSorted() && <ArrowUpDown className="ml-1 h-3 w-3" />}
+                    <span className="truncate">মুজুরী</span>
+                    {column.getIsSorted() === "asc" && <ArrowUp className="ml-1 h-2 w-2 flex-shrink-0" />}
+                    {column.getIsSorted() === "desc" && <ArrowDown className="ml-1 h-2 w-2 flex-shrink-0" />}
+                    {!column.getIsSorted() && <ArrowUpDown className="ml-1 h-2 w-2 flex-shrink-0" />}
                 </Button>
             ),
             cell: ({ getValue }) => (
-                <div className="flex items-center gap-1 font-bold">
+                <span className="text-xs font-bold truncate inline-block max-w-full">
                     OMR {getValue()}
-                    <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200">
-                        কর্মী
-                    </Badge>
-                </div>
+                </span>
             ),
-            size: 100,
+            size: 80,
+            minSize: 60,
+            maxSize: 90,
         }),
         columnHelper.accessor("shopIds", {
-            header: "দোকান",
+            header: ({ column }) => (
+                <div className="font-semibold text-xs min-w-0">
+                    <span className="truncate">দোকান</span>
+                </div>
+            ),
             cell: ({ getValue }) => {
                 const shopIds = getValue() || [];
+                const displayShops = shopIds.slice(0, 2);
+                const remainingCount = shopIds.length - displayShops.length;
+
                 return (
-                    <div className="flex flex-wrap gap-1">
-                        {shopIds.map((shopId) => {
+                    <div className="flex flex-wrap gap-1 min-w-0">
+                        {displayShops.map((shopId) => {
                             const shop = shops.find(s => s.$id === shopId);
                             return shop ? (
-                                <Badge key={shopId} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                    <Store className="h-3 w-3 mr-1" />
-                                    {shop.name}
-                                </Badge>
+                                <span key={shopId} className="text-xs bg-blue-50 text-blue-700 px-1 py-0.5 rounded border flex-shrink-0 truncate" title={shop.name}>
+                                    {shop.name.substring(0, 10) + (shop.name.length > 10 ? '...' : '')}
+                                </span>
                             ) : null;
                         })}
+                        {remainingCount > 0 && (
+                            <span className="text-xs text-muted-foreground flex-shrink-0">
+                                +{remainingCount}
+                            </span>
+                        )}
                         {shopIds.length === 0 && (
-                            <Badge variant="outline" className="text-xs text-muted-foreground">
-                                কোন দোকান নেই
-                            </Badge>
+                            <span className="text-xs text-muted-foreground flex-shrink-0">
+                                -
+                            </span>
                         )}
                     </div>
                 );
             },
-            size: 180,
+            size: 140,
+            minSize: 90,
+            maxSize: 160,
         }),
         columnHelper.accessor("images", {
-            header: "ছবি",
+            header: ({ column }) => (
+                <div className="font-semibold text-xs min-w-0">
+                    <span className="truncate">ছবি</span>
+                </div>
+            ),
             cell: ({ getValue, row }) => {
                 const images = getValue() || [];
                 if (images.length === 0) {
-                    return <span className="text-muted-foreground text-sm">নেই</span>;
+                    return <span className="text-muted-foreground text-xs">নেই</span>;
                 }
 
                 return (
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 min-w-0">
                         {images.slice(0, 3).map((imageId, index) => (
-                            <div key={index} className="relative group">
-                                <img
-                                    src={getOptimizedImageUrl(imageId, { width: 40, height: 40 })}
-                                    alt={`Image ${index + 1}`}
-                                    className="w-10 h-10 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
-                                    loading="lazy"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        if (onImagePreview && typeof onImagePreview === 'function') {
-                                            onImagePreview(imageId, row.original.name);
-                                        }
-                                    }}
-                                    style={{ pointerEvents: 'auto', cursor: 'pointer' }}
-                                    onError={(e) => {
-                                        console.error('Image failed to load in table:', imageId);
-                                        e.target.style.display = 'none';
-                                    }}
-                                />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
-                                    <Eye className="h-4 w-4 text-white" />
-                                </div>
-                            </div>
+                            <img
+                                key={index}
+                                src={getOptimizedImageUrl(imageId, { width: 32, height: 32 })}
+                                alt={`Image ${index + 1}`}
+                                className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
+                                loading="lazy"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (onImagePreview && typeof onImagePreview === 'function') {
+                                        onImagePreview(imageId, row.original.name);
+                                    }
+                                }}
+                                style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                                onError={(e) => {
+                                    console.error('Image failed to load in table:', imageId);
+                                    e.target.style.display = 'none';
+                                }}
+                            />
                         ))}
                         {images.length > 3 && (
-                            <Badge variant="secondary" className="h-10 w-10 flex items-center justify-center">
+                            <span className="text-xs flex items-center justify-center w-8 h-8 flex-shrink-0">
                                 +{images.length - 3}
-                            </Badge>
+                            </span>
                         )}
                     </div>
                 );
             },
-            size: 120,
+            size: 90,
+            minSize: 60,
+            maxSize: 100,
         }),
         columnHelper.display({
             id: "actions",
-            header: "ক্রিয়া",
+            header: ({ column }) => (
+                <div className="font-semibold text-xs min-w-0">
+                    <span className="truncate">ক্রিয়া</span>
+                </div>
+            ),
             cell: ({ row }) => (
-                <div className="flex gap-2">
+                <div className="flex gap-1 min-w-0">
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => onEdit && onEdit(row.original)}
-                        className="h-8 w-8 p-0"
+                        className="h-6 w-6 p-0 flex-shrink-0"
                     >
-                        <Edit2 className="h-4 w-4" />
+                        <Edit2 className="h-3 w-3" />
                     </Button>
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => onDelete && onDelete(row.original)}
-                        className="h-8 w-8 p-0"
+                        className="h-6 w-6 p-0 flex-shrink-0"
                     >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3 w-3" />
                     </Button>
                 </div>
             ),
-            size: 100,
+            size: 80,
+            minSize: 60,
+            maxSize: 90,
         }),
     ], [shops, onEdit, onDelete, onImagePreview]);
 
@@ -338,40 +355,43 @@ export function VirtualTable({
     }
 
     return (
-        <div className={`${className}`}>
+        <div className={`${className} w-full`}>
             {/* Table Container with Virtual Scrolling */}
-            <div className="w-full">
-                <div className="relative">
+            <div className="w-full max-w-full overflow-hidden">
+                <div className="relative w-full">
                     {/* Horizontal scroll indicator for mobile */}
                     <div className="sm:hidden bg-muted/30 text-xs text-muted-foreground text-center py-1 border-b">
                         ← সোয়াইপ করে দেখুন →
                     </div>
                     <div
                         ref={tableContainerRef}
-                        className="rounded-md border max-h-[300px] sm:max-h-[400px] lg:max-h-[600px] overflow-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+                        className="rounded-md border max-h-[250px] sm:max-h-[350px] md:max-h-[450px] lg:max-h-[600px] overflow-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 w-full"
                         style={{
-                            height: Math.min(rows.length * 60 + 120, window.innerWidth < 640 ? 300 : window.innerWidth < 1024 ? 400 : 600)
+                            height: Math.min(rows.length * 60 + 120, 600),
+                            maxWidth: '100%',
+                            overflowX: 'auto',
+                            overflowY: 'auto'
                         }}
                     >
-                        <Table className="min-w-full">
-                            <TableHeader className="sticky top-0 bg-background z-10">
+                        <Table className="min-w-[800px] w-full table-fixed">
+                            <TableHeader className="sticky top-0 bg-background z-10 border-b-2">
                                 {table.getHeaderGroups().map((headerGroup) => (
-                                    <TableRow key={headerGroup.id} className="min-w-full">
+                                    <TableRow key={headerGroup.id} className="min-w-full w-full">
                                         {headerGroup.headers.map((header) => (
                                             <TableHead
                                                 key={header.id}
                                                 style={{
                                                     width: header.getSize(),
-                                                    minWidth: header.column.id === 'name' ? '150px' :
-                                                        header.column.id === 'type' ? '120px' :
-                                                            header.column.id === 'design_code' ? '100px' :
-                                                                header.column.id === 'sell_price' ? '80px' :
-                                                                    header.column.id === 'worker_price' ? '80px' :
-                                                                        header.column.id === 'shopIds' ? '140px' :
-                                                                            header.column.id === 'images' ? '100px' :
-                                                                                header.column.id === 'actions' ? '80px' : 'auto'
+                                                    minWidth: header.column.id === 'name' ? '120px' :
+                                                             header.column.id === 'type' ? '100px' :
+                                                             header.column.id === 'design_code' ? '80px' :
+                                                             header.column.id === 'sell_price' ? '70px' :
+                                                             header.column.id === 'worker_price' ? '70px' :
+                                                             header.column.id === 'shopIds' ? '120px' :
+                                                             header.column.id === 'images' ? '80px' :
+                                                             header.column.id === 'actions' ? '70px' : 'auto',
                                                 }}
-                                                className="bg-muted/50 text-xs sm:text-sm"
+                                                className="bg-muted/30 text-xs font-semibold border-r border-muted/50 last:border-r-0 px-1 py-2"
                                             >
                                                 {header.isPlaceholder
                                                     ? null
@@ -395,7 +415,21 @@ export function VirtualTable({
                                             }}
                                         >
                                             {row.getVisibleCells().map((cell) => (
-                                                <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
+                                                <TableCell
+                                                    key={cell.id}
+                                                    style={{
+                                                        width: cell.column.getSize(),
+                                                        minWidth: cell.column.id === 'name' ? '120px' :
+                                                                 cell.column.id === 'type' ? '100px' :
+                                                                 cell.column.id === 'design_code' ? '80px' :
+                                                                 cell.column.id === 'sell_price' ? '70px' :
+                                                                 cell.column.id === 'worker_price' ? '70px' :
+                                                                 cell.column.id === 'shopIds' ? '120px' :
+                                                                 cell.column.id === 'images' ? '80px' :
+                                                                 cell.column.id === 'actions' ? '70px' : 'auto'
+                                                    }}
+                                                    className="px-1 py-2 text-xs border-r border-muted/30 last:border-r-0"
+                                                >
                                                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                                 </TableCell>
                                             ))}
@@ -409,11 +443,11 @@ export function VirtualTable({
             </div>
 
             {/* Table Info and Pagination Controls */}
-            <div className="flex flex-col gap-4 pt-4 border-t">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                            <span>সারি প্রতি:</span>
+            <div className="flex flex-col gap-3 sm:gap-4 pt-3 sm:pt-4 border-t">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground w-full">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <span className="whitespace-nowrap">সারি প্রতি:</span>
                             <Select
                                 value={itemsPerPage.toString()}
                                 onValueChange={(value) => {
@@ -421,7 +455,7 @@ export function VirtualTable({
                                     setCurrentPage(1);
                                 }}
                             >
-                                <SelectTrigger className="w-20 h-8">
+                                <SelectTrigger className="w-16 sm:w-20 h-7 sm:h-8 text-xs sm:text-sm">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -432,20 +466,25 @@ export function VirtualTable({
                                 </SelectContent>
                             </Select>
                         </div>
-                        <span className="text-xs sm:text-sm">
-                            পৃষ্ঠা {currentPage} এর {totalPages} • মোট {filteredData.length} আইটেম
-                            {globalFilter && <span className="text-blue-600"> (ফিল্টার করা: "{globalFilter}")</span>}
+                        <span className="text-xs sm:text-sm truncate min-w-0">
+                            পৃষ্ঠা {currentPage}/{totalPages} • মোট {filteredData.length} আইটেম
+                            {globalFilter && <span className="text-blue-600"> (ফিল্টার করা)</span>}
                         </span>
                     </div>
 
                     <div className="flex items-center gap-1 sm:gap-2 w-full sm:w-auto justify-center sm:justify-end">
                         {sorting.length > 0 && (
-                            <div className="flex items-center gap-1 mr-2 hidden sm:flex">
-                                {sorting.map((sort) => (
-                                    <Badge key={`${sort.id}-${sort.desc ? 'desc' : 'asc'}`} variant="outline" className="text-xs">
-                                        {sort.id}: {sort.desc ? 'অধঃক্রম' : 'উর্ধ্বক্রম'}
+                            <div className="flex items-center gap-1 mr-1 sm:mr-2 hidden sm:flex">
+                                {sorting.slice(0, 2).map((sort) => (
+                                    <Badge key={`${sort.id}-${sort.desc ? 'desc' : 'asc'}`} variant="outline" className="text-xs truncate max-w-[100px]">
+                                        <span className="truncate">{sort.id}: {sort.desc ? 'অধঃক্রম' : 'উর্ধ্বক্রম'}</span>
                                     </Badge>
                                 ))}
+                                {sorting.length > 2 && (
+                                    <Badge variant="outline" className="text-xs">
+                                        +{sorting.length - 2}
+                                    </Badge>
+                                )}
                             </div>
                         )}
                         <div className="flex items-center gap-1">
@@ -454,14 +493,14 @@ export function VirtualTable({
                                 size="sm"
                                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                 disabled={currentPage === 1}
-                                className="h-8 px-2 sm:px-3"
+                                className="h-7 sm:h-8 px-1 sm:px-2 text-xs sm:text-sm"
                             >
-                                <ChevronLeft className="h-4 w-4" />
+                                <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
                                 <span className="hidden sm:inline ml-1">পূর্ববর্তী</span>
                             </Button>
                             <div className="flex items-center gap-1">
-                                {Array.from({ length: Math.min(window.innerWidth < 640 ? 3 : 5, totalPages) }, (_, i) => {
-                                    const pageNumber = Math.max(1, Math.min(totalPages - (window.innerWidth < 640 ? 2 : 4), currentPage - 2)) + i;
+                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                    const pageNumber = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
                                     if (pageNumber > totalPages) return null;
 
                                     return (
@@ -470,7 +509,7 @@ export function VirtualTable({
                                             variant={currentPage === pageNumber ? "default" : "outline"}
                                             size="sm"
                                             onClick={() => setCurrentPage(pageNumber)}
-                                            className="w-8 h-8 p-0 text-xs"
+                                            className="w-7 h-7 sm:w-8 sm:h-8 p-0 text-xs"
                                         >
                                             {pageNumber}
                                         </Button>
@@ -482,10 +521,10 @@ export function VirtualTable({
                                 size="sm"
                                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                 disabled={currentPage === totalPages}
-                                className="h-8 px-2 sm:px-3"
+                                className="h-7 sm:h-8 px-1 sm:px-2 text-xs sm:text-sm"
                             >
                                 <span className="hidden sm:inline mr-1">পরবর্তী</span>
-                                <ChevronRight className="h-4 w-4" />
+                                <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
                             </Button>
                         </div>
                     </div>
