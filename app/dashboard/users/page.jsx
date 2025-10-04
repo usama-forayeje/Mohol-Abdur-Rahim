@@ -101,6 +101,7 @@ function UserManagementContent() {
   const currentUserRole = getUserRole()
   const { data: shops, isLoading: shopsLoading } = useShops()
   const queryClient = useQueryClient()
+  const deleteUser = userManagementService.useDeleteUser()
 
   const [selectedTab, setSelectedTab] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
@@ -112,6 +113,11 @@ function UserManagementContent() {
     open: false,
     user: null,
     assignment: null,
+  })
+
+  const [deleteUserDialog, setDeleteUserDialog] = useState({
+    open: false,
+    user: null,
   })
 
   const [selectedRole, setSelectedRole] = useState("")
@@ -302,6 +308,23 @@ function UserManagementContent() {
       toast.error(error.message || "Remove করতে ব্যর্থ")
       throw error
     }
+  }
+
+  const handleDeleteUserClick = (user) => {
+    setDeleteUserDialog({ open: true, user })
+  }
+
+  const handleDeleteUserConfirm = async () => {
+    try {
+      await deleteUser.mutateAsync({ userId: deleteUserDialog.user.$id, currentUserRole })
+      setDeleteUserDialog({ open: false, user: null })
+    } catch (error) {
+      // Error handled by the mutation
+    }
+  }
+
+  const closeDeleteDialog = () => {
+    setDeleteUserDialog({ open: false, user: null })
   }
 
   const getRoleIcon = (role) => {
@@ -567,7 +590,7 @@ function UserManagementContent() {
                                   </div>
                                 </div>
 
-                                {/* Actions Dropdown */}
+                                {/* Actions Dropdown - Show for all assignments */}
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -619,14 +642,42 @@ function UserManagementContent() {
                                       <Trash2 className="w-4 h-4 mr-2" />
                                       Shop থেকে remove
                                     </DropdownMenuItem>
+                                    {/* Delete User option - only for superAdmin and admin */}
+                                    {["superAdmin", "admin"].includes(currentUserRole) && (
+                                      <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                          onClick={() => handleDeleteUserClick(user)}
+                                          className="text-destructive focus:text-destructive"
+                                        >
+                                          <AlertCircle className="w-4 h-4 mr-2" />
+                                          ইউজার delete করুন
+                                        </DropdownMenuItem>
+                                      </>
+                                    )}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <div className="text-sm text-muted-foreground text-center py-2 bg-muted/30 rounded">
-                            কোন shop নেই
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="text-sm text-muted-foreground text-center py-2 bg-muted/30 rounded flex-1 mr-2">
+                              কোন shop নেই
+                            </div>
+
+                            {/* Assign Role button for users without assignments */}
+                            {["admin", "superAdmin", "manager"].includes(currentUserRole) && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setAssignRoleDialog({ open: true, user, assignment: null })}
+                                className="flex-shrink-0"
+                              >
+                                <UserCheck className="w-4 h-4 mr-1" />
+                                Assign
+                              </Button>
+                            )}
                           </div>
                         )}
                       </CardContent>
@@ -733,61 +784,98 @@ function UserManagementContent() {
 
                               <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
-                                  {user.assignments.map((assignment) => (
-                                    <DropdownMenu key={assignment.assignmentId}>
-                                      <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="sm">
-                                          <MoreVertical className="h-4 w-4" />
-                                        </Button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end">
-                                        <DropdownMenuItem
-                                          onClick={() => setAssignRoleDialog({ open: true, user, assignment })}
-                                        >
-                                          <Edit2 className="w-4 h-4 mr-2" />
-                                          Role পরিবর্তন
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                          onClick={async () => {
-                                            try {
-                                              await handleToggleStatusMutation(
-                                                assignment,
-                                                assignment.status === "active" ? "inactive" : "active",
-                                              )
-                                            } catch (error) {
-                                              // Error handled
-                                            }
-                                          }}
-                                        >
-                                          {assignment.status === "active" ? (
-                                            <>
-                                              <UserX className="w-4 h-4 mr-2" />
-                                              নিষ্ক্রিয় করুন
-                                            </>
-                                          ) : (
-                                            <>
+                                  {/* Show 3-dot menu for admin/manager/superAdmin OR if user has assignments */}
+                                  {(user.assignments.length > 0 || ["admin", "superAdmin", "manager"].includes(currentUserRole)) && (
+                                    <>
+                                      {user.assignments.map((assignment) => (
+                                        <DropdownMenu key={assignment.assignmentId}>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="sm">
+                                              <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end">
+                                            <DropdownMenuItem
+                                              onClick={() => setAssignRoleDialog({ open: true, user, assignment })}
+                                            >
+                                              <Edit2 className="w-4 h-4 mr-2" />
+                                              Role পরিবর্তন
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                              onClick={async () => {
+                                                try {
+                                                  await handleToggleStatusMutation(
+                                                    assignment,
+                                                    assignment.status === "active" ? "inactive" : "active",
+                                                  )
+                                                } catch (error) {
+                                                  // Error handled
+                                                }
+                                              }}
+                                            >
+                                              {assignment.status === "active" ? (
+                                                <>
+                                                  <UserX className="w-4 h-4 mr-2" />
+                                                  নিষ্ক্রিয় করুন
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <UserCheck className="w-4 h-4 mr-2" />
+                                                  সক্রিয় করুন
+                                                </>
+                                              )}
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                              onClick={async () => {
+                                                try {
+                                                  await handleRemoveFromShopMutation(assignment)
+                                                } catch (error) {
+                                                  // Error handled
+                                                }
+                                              }}
+                                              className="text-destructive focus:text-destructive"
+                                            >
+                                              <Trash2 className="w-4 h-4 mr-2" />
+                                              Shop থেকে remove
+                                            </DropdownMenuItem>
+                                            {/* Delete User option - only for superAdmin and admin */}
+                                            {["superAdmin", "admin"].includes(currentUserRole) && (
+                                              <>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem
+                                                  onClick={() => handleDeleteUserClick(user)}
+                                                  className="text-destructive focus:text-destructive"
+                                                >
+                                                  <AlertCircle className="w-4 h-4 mr-2" />
+                                                  ইউজার delete করুন
+                                                </DropdownMenuItem>
+                                              </>
+                                            )}
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
+                                      ))}
+
+                                      {/* For users with no assignments, show assign role option */}
+                                      {user.assignments.length === 0 && ["admin", "superAdmin", "manager"].includes(currentUserRole) && (
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="sm">
+                                              <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end">
+                                            <DropdownMenuItem
+                                              onClick={() => setAssignRoleDialog({ open: true, user, assignment: null })}
+                                            >
                                               <UserCheck className="w-4 h-4 mr-2" />
-                                              সক্রিয় করুন
-                                            </>
-                                          )}
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem
-                                          onClick={async () => {
-                                            try {
-                                              await handleRemoveFromShopMutation(assignment)
-                                            } catch (error) {
-                                              // Error handled
-                                            }
-                                          }}
-                                          className="text-destructive focus:text-destructive"
-                                        >
-                                          <Trash2 className="w-4 h-4 mr-2" />
-                                          Shop থেকে remove
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  ))}
+                                              Role Assign করুন
+                                            </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
+                                      )}
+                                    </>
+                                  )}
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -901,6 +989,60 @@ function UserManagementContent() {
                 className="w-full sm:w-auto"
               >
                 {assignRoleDialog.assignment ? "আপডেট" : "Assign"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete User Confirmation Dialog */}
+        <Dialog open={deleteUserDialog.open} onOpenChange={(open) => !open && closeDeleteDialog()}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle className="text-lg sm:text-xl flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-destructive" />
+                ইউজার Delete করুন
+              </DialogTitle>
+              <DialogDescription className="text-sm">
+                আপনি কি নিশ্চিত যে আপনি "{deleteUserDialog.user?.name}" কে সম্পূর্ণরূপে delete করতে চান?
+                এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না এবং ইউজারের সমস্ত তথ্য মুছে যাবে।
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-4">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-destructive/20 flex items-center justify-center">
+                    <AlertCircle className="w-5 h-5 text-destructive" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-destructive">{deleteUserDialog.user?.name}</p>
+                    <p className="text-sm text-muted-foreground">{deleteUserDialog.user?.email}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={closeDeleteDialog} className="w-full sm:w-auto">
+                বাতিল করুন
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteUserConfirm}
+                disabled={deleteUser.isPending}
+                className="w-full sm:w-auto"
+              >
+                {deleteUser.isPending ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-4 h-4 mr-2" />
+                    Delete করুন
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { useTheme } from "next-themes"
+import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/store/auth-store"
 import PageContainer from "@/components/layout/page-container"
 import { Button } from "@/components/ui/button"
@@ -22,6 +23,8 @@ import {
   Activity,
   Target,
   ShoppingBag,
+  AlertCircle,
+  Loader2,
 } from "lucide-react"
 import { useFabricSales } from "@/services/fabric-sales-service"
 import { useFabrics } from "@/services/fabric-service"
@@ -41,12 +44,15 @@ import {
   Cell,
   Area,
   AreaChart,
+  LineChart,
+  Line,
 } from "recharts"
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
 
 export default function FabricsReportsPage() {
   const { selectedShopId, userProfile } = useAuthStore()
   const { theme } = useTheme()
+  const router = useRouter()
   const [dateRange, setDateRange] = useState("30")
   const [selectedFabricFilter, setSelectedFabricFilter] = useState("all")
   const [searchTerm, setSearchTerm] = useState("")
@@ -56,7 +62,7 @@ export default function FabricsReportsPage() {
     setMounted(true)
   }, [])
 
-  const { data: salesData = [], isLoading: salesLoading } = useFabricSales(selectedShopId)
+  const { data: salesData = [], isLoading: salesLoading, error, refetch } = useFabricSales(selectedShopId)
   const { data: fabrics = [], isLoading: fabricsLoading } = useFabrics(selectedShopId)
   const { data: customers = [] } = useCustomers()
 
@@ -403,54 +409,101 @@ export default function FabricsReportsPage() {
     return null
   }
 
+  // Error State
+  if (error) {
+    return (
+      <PageContainer>
+        <div className="min-h-screen flex items-center justify-center p-6">
+          <Card className="max-w-md w-full">
+            <CardContent className="p-6">
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-3">
+                    <p className="font-semibold">রিপোর্ট তথ্য লোড করতে সমস্যা হয়েছে</p>
+                    <p className="text-sm">{error.message}</p>
+                    <Button onClick={() => refetch()} variant="outline" size="sm" className="w-full">
+                      আবার চেষ্টা করুন
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        </div>
+      </PageContainer>
+    )
+  }
+
+  // Loading State
   if (salesLoading || fabricsLoading) {
     return (
       <PageContainer>
-        <div className="min-h-screen w-full bg-background">
+        <div className="min-h-screen w-full">
           <div className="border-b bg-card">
             <div className="container mx-auto p-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-lg bg-muted animate-pulse" />
-                <div className="space-y-2">
-                  <div className="h-8 w-64 bg-muted rounded animate-pulse" />
-                  <div className="h-4 w-48 bg-muted rounded animate-pulse" />
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                <div className="space-y-3 flex-1">
+                  <div className="h-8 w-48 bg-muted rounded animate-pulse" />
+                  <div className="h-5 w-72 bg-muted/60 rounded animate-pulse" />
+                  <div className="flex gap-2">
+                    <div className="h-7 w-28 bg-muted/40 rounded-full animate-pulse" />
+                    <div className="h-7 w-24 bg-muted/40 rounded-full animate-pulse" />
+                  </div>
                 </div>
+                <div className="h-10 w-32 bg-primary/20 rounded-lg animate-pulse" />
               </div>
             </div>
           </div>
-          <div className="container mx-auto p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+
+          <div className="container mx-auto p-6 space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[1, 2, 3, 4].map((i) => (
                 <Card key={i}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="h-4 w-24 bg-muted rounded animate-pulse" />
-                      <div className="h-10 w-10 bg-muted rounded-full animate-pulse" />
+                  <CardContent className="p-4">
+                    <div className="space-y-2">
+                      <div className="h-3 w-20 bg-muted/60 rounded animate-pulse" />
+                      <div className="h-7 w-16 bg-muted rounded animate-pulse" />
                     </div>
-                    <div className="h-10 w-16 bg-muted rounded mb-2 animate-pulse" />
-                    <div className="h-3 w-32 bg-muted rounded animate-pulse" />
                   </CardContent>
                 </Card>
               ))}
             </div>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-center h-64">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </PageContainer>
     )
   }
 
-  if (!selectedShopId) {
+  // No shop selected
+  if (!selectedShopId && !salesLoading) {
     return (
       <PageContainer>
-        <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+        <div className="min-h-screen flex items-center justify-center p-6">
           <Card className="max-w-md w-full">
-            <CardContent className="p-8">
-              <Alert>
-                <AlertTriangle className="h-6 w-6 mx-auto mb-4" />
-                <AlertDescription className="text-center">
-                  <div className="space-y-4">
-                    <p className="font-semibold text-lg">দোকান নির্বাচন করুন</p>
-                    <p className="text-sm text-muted-foreground">ফ্যাব্রিক রিপোর্ট দেখার জন্য প্রথমে একটি দোকান নির্বাচন করুন</p>
+            <CardContent className="p-6">
+              <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/50">
+                <AlertTriangle className="h-5 w-5 text-blue-600" />
+                <AlertDescription className="text-blue-800 dark:text-blue-200">
+                  <div className="space-y-3">
+                    <p className="font-semibold">দোকান নির্বাচন করুন</p>
+                    <p className="text-sm">ফ্যাব্রিক রিপোর্ট দেখার জন্য প্রথমে একটি দোকান নির্বাচন করুন</p>
+                    <Button
+                      onClick={() => router.push("/dashboard/shop")}
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                    >
+                      দোকান নির্বাচন করুন
+                    </Button>
                   </div>
                 </AlertDescription>
               </Alert>
@@ -622,103 +675,68 @@ export default function FabricsReportsPage() {
                 </Card>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Package className="h-5 w-5 text-chart-1" />
-                      স্টক লেভেল অ্যানালাইসিস
-                    </CardTitle>
-                    <CardDescription>বর্তমান ইনভেন্টরি স্ট্যাটাস এবং ভ্যালু ডিস্ট্রিবিউশন</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ChartContainer
-                      config={{
-                        stock: {
-                          label: "স্টক কোয়ান্টিটি",
-                          color: "oklch(var(--chart-1))",
-                        },
-                        value: {
-                          label: "মোট ভ্যালু (৳)",
-                          color: "oklch(var(--chart-2))",
-                        },
-                      }}
-                      className="h-[350px]"
-                    >
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={stockChartData.slice(0, 8)}
-                          margin={{ top: 10, right: 20, left: 0, bottom: 60 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
-                          <XAxis
-                            dataKey="name"
-                            className="text-xs"
-                            angle={-45}
-                            textAnchor="end"
-                            height={60}
-                            interval={0}
-                          />
-                          <YAxis className="text-xs" />
-                          <ChartTooltip content={<CustomTooltip />} />
-                          <Legend wrapperStyle={{ paddingTop: "10px" }} />
-                          <Bar
-                            dataKey="stock"
-                            fill="#22c55e"
-                            name="স্টক কোয়ান্টিটি"
-                            radius={[8, 8, 0, 0]}
-                            opacity={0.9}
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </ChartContainer>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <PieChart className="h-5 w-5 text-chart-2" />
-                      ফ্যাব্রিক টাইপ বিতরণ
-                    </CardTitle>
-                    <CardDescription>কোন ধরনের ফ্যাব্রিক কতটা বিক্রি হচ্ছে</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ChartContainer
-                      config={{
-                        revenue: {
-                          label: "রেভেনিউ",
-                          color: "oklch(var(--chart-1))",
-                        },
-                      }}
-                      className="h-[350px]"
-                    >
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartsPieChart>
-                          <Pie
-                            data={salesByFabricType}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ type, percent }) => `${type} ${((percent || 0) * 100).toFixed(0)}%`}
-                            outerRadius={100}
-                            fill="hsl(var(--chart-1))"
-                            dataKey="revenue"
-                            strokeWidth={2}
-                            stroke="hsl(var(--background))"
-                          >
-                            {salesByFabricType.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={`#22c55e`} opacity={0.9} />
-                            ))}
-                          </Pie>
-                          <ChartTooltip content={<CustomTooltip />} />
-                          <Legend wrapperStyle={{ paddingTop: "10px" }} />
-                        </RechartsPieChart>
-                      </ResponsiveContainer>
-                    </ChartContainer>
-                  </CardContent>
-                </Card>
-              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="h-5 w-5 text-chart-1" />
+                    স্টক লেভেল অ্যানালাইসিস
+                  </CardTitle>
+                  <CardDescription>বর্তমান ইনভেন্টরি স্ট্যাটাস এবং ভ্যালু ডিস্ট্রিবিউশন</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      stock: {
+                        label: "স্টক কোয়ান্টিটি",
+                        color: "oklch(var(--chart-1))",
+                      },
+                      value: {
+                        label: "মোট ভ্যালু (৳)",
+                        color: "oklch(var(--chart-2))",
+                      },
+                    }}
+                    className="h-[400px]"
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={stockChartData.slice(0, 10)}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
+                        <XAxis
+                          dataKey="name"
+                          className="text-xs"
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                          interval={0}
+                        />
+                        <YAxis className="text-xs" />
+                        <ChartTooltip content={<CustomTooltip />} />
+                        <Legend wrapperStyle={{ paddingTop: "20px" }} />
+                        <Line
+                          type="monotone"
+                          dataKey="stock"
+                          stroke="#22c55e"
+                          strokeWidth={4}
+                          name="স্টক কোয়ান্টিটি"
+                          dot={{ fill: "#22c55e", strokeWidth: 3, r: 8 }}
+                          activeDot={{ r: 10, stroke: "#22c55e", strokeWidth: 3, fill: "#fff" }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="value"
+                          stroke="#3b82f6"
+                          strokeWidth={4}
+                          name="মোট ভ্যালু (৳)"
+                          dot={{ fill: "#3b82f6", strokeWidth: 3, r: 8 }}
+                          activeDot={{ r: 10, stroke: "#3b82f6", strokeWidth: 3, fill: "#fff" }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
 
               <Card>
                 <CardHeader>
@@ -794,81 +812,194 @@ export default function FabricsReportsPage() {
             </TabsContent>
 
             <TabsContent value="stock" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Package className="h-5 w-5 text-chart-1" />
-                      স্টক ডিস্ট্রিবিউশন
-                    </CardTitle>
-                    <CardDescription>ফ্যাব্রিক অনুসারে স্টক লেভেল এবং ভ্যালু</CardDescription>
+              {/* Stock Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="hover:shadow-lg transition-shadow">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">টোটাল ফ্যাব্রিক্স</CardTitle>
+                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <Package className="h-5 w-5 text-blue-600" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <ChartContainer
-                      config={{
-                        stock: {
-                          label: "স্টক",
-                          color: "oklch(var(--chart-1))",
-                        },
-                      }}
-                      className="h-[400px]"
-                    >
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={stockChartData.slice(0, 8)} layout="horizontal">
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
-                          <XAxis type="number" className="text-xs" />
-                          <YAxis dataKey="name" type="category" width={100} className="text-xs" />
-                          <ChartTooltip content={<CustomTooltip />} />
-                          <Bar
-                            dataKey="stock"
-                            fill="#22c55e"
-                            name="স্টক"
-                            radius={[0, 8, 8, 0]}
-                            opacity={0.9}
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </ChartContainer>
+                    <div className="text-3xl font-bold">{fabrics.length}</div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      স্টকে আছে
+                    </p>
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-destructive" />
-                      লো স্টক অ্যালার্টস
-                    </CardTitle>
-                    <CardDescription>ক্রিটিকাল স্টক লেভেল মনিটরিং</CardDescription>
+                <Card className="hover:shadow-lg transition-shadow">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">লো স্টক আইটেমস</CardTitle>
+                    <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
+                      <AlertTriangle className="h-5 w-5 text-red-600" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      {stockChartData
-                        .filter((item) => item.stock < 10)
-                        .slice(0, 6)
-                        .map((item) => (
-                          <div
-                            key={item.name}
-                            className="flex items-center justify-between p-4 bg-destructive/10 rounded-lg border border-destructive/20"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-destructive/20 flex items-center justify-center">
-                                <AlertTriangle className="h-4 w-4 text-destructive" />
-                              </div>
-                              <div>
-                                <p className="font-medium">{item.name}</p>
-                                <p className="text-sm text-muted-foreground">{item.type}</p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-bold text-destructive">{item.stock} units</p>
-                              <p className="text-sm text-muted-foreground">ক্রিটিকাল</p>
-                            </div>
-                          </div>
-                        ))}
+                    <div className="text-3xl font-bold text-red-600">
+                      {stockChartData.filter((item) => item.stock < 10).length}
                     </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ক্রিটিকাল লেভেল
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="hover:shadow-lg transition-shadow">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">টোটাল স্টক ভ্যালু</CardTitle>
+                    <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                      <DollarSign className="h-5 w-5 text-green-600" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-green-600">
+                      ৳{stockChartData.reduce((sum, item) => sum + item.value, 0).toLocaleString()}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      বর্তমান মার্কেট ভ্যালু
+                    </p>
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Main Stock Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="h-5 w-5 text-chart-1" />
+                    স্টক লেভেল অ্যানালাইসিস
+                  </CardTitle>
+                  <CardDescription>ফ্যাব্রিক অনুসারে স্টক লেভেল এবং ভ্যালু ডিস্ট্রিবিউশন</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      stock: {
+                        label: "স্টক কোয়ান্টিটি",
+                        color: "oklch(var(--chart-1))",
+                      },
+                      value: {
+                        label: "মোট ভ্যালু (৳)",
+                        color: "oklch(var(--chart-2))",
+                      },
+                    }}
+                    className="h-[450px]"
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={stockChartData.slice(0, 12)}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 100 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
+                        <XAxis
+                          dataKey="name"
+                          className="text-xs"
+                          angle={-45}
+                          textAnchor="end"
+                          height={100}
+                          interval={0}
+                        />
+                        <YAxis className="text-xs" />
+                        <ChartTooltip content={<CustomTooltip />} />
+                        <Legend wrapperStyle={{ paddingTop: "20px" }} />
+                        <Line
+                          type="monotone"
+                          dataKey="stock"
+                          stroke="#22c55e"
+                          strokeWidth={4}
+                          name="স্টক কোয়ান্টিটি"
+                          dot={{ fill: "#22c55e", strokeWidth: 3, r: 8 }}
+                          activeDot={{ r: 10, stroke: "#22c55e", strokeWidth: 3, fill: "#fff" }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="value"
+                          stroke="#3b82f6"
+                          strokeWidth={4}
+                          name="মোট ভ্যালু (৳)"
+                          dot={{ fill: "#3b82f6", strokeWidth: 3, r: 8 }}
+                          activeDot={{ r: 10, stroke: "#3b82f6", strokeWidth: 3, fill: "#fff" }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+
+              {/* Low Stock Alerts - Improved Design */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                    লো স্টক অ্যালার্টস
+                  </CardTitle>
+                  <CardDescription>ক্রিটিকাল স্টক লেভেল মনিটরিং এবং রিপ্লেনিশমেন্ট রেকোমেন্ডেশন</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {stockChartData
+                      .filter((item) => item.stock < 10)
+                      .slice(0, 8)
+                      .map((item) => (
+                        <div
+                          key={item.name}
+                          className="group relative overflow-hidden p-4 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 rounded-xl border border-red-200 dark:border-red-800 hover:shadow-lg transition-all duration-300"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                <AlertTriangle className="h-6 w-6 text-red-600" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-semibold text-gray-900 dark:text-gray-100 truncate">{item.name}</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">{item.type}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-xs bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 px-2 py-1 rounded-full">
+                                    স্টক: {item.stock} units
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-red-600">
+                                ৳{item.value.toLocaleString()}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">বর্তমান ভ্যালু</p>
+                            </div>
+                          </div>
+
+                          {/* Progress bar showing stock level */}
+                          <div className="mt-3">
+                            <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+                              <span>স্টক লেভেল</span>
+                              <span>{item.stock}/100</span>
+                            </div>
+                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                              <div
+                                className="bg-red-500 h-2 rounded-full transition-all duration-500"
+                                style={{ width: `${Math.min((item.stock / 100) * 100, 100)}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+
+                  {stockChartData.filter((item) => item.stock < 10).length === 0 && (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 flex items-center justify-center">
+                        <Package className="h-8 w-8 text-green-600" />
+                      </div>
+                      <p className="text-lg font-semibold text-green-600 mb-2">সব স্টক নরমাল!</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        সব ফ্যাব্রিকের স্টক লেভেল স্বাভাবিক আছে
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="sales" className="space-y-6">

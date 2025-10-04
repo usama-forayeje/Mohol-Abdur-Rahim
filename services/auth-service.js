@@ -19,25 +19,139 @@ const debugLog = (message, data = null) => {
 export const authService = {
   async loginWithGoogle() {
     try {
+      // Enhanced Firefox detection
+      const userAgent = window.navigator.userAgent;
+      const isFirefox = userAgent.includes('Firefox');
+
+      console.log("🔐 Login attempt - Browser Info:", {
+        isFirefox,
+        userAgent: userAgent.substring(0, 100),
+        cookieEnabled: window.navigator.cookieEnabled,
+        onLine: window.navigator.onLine
+      });
+
       const successUrl = `${window.location.origin}/callback`;
       const failureUrl = `${window.location.origin}/sign-in?error=auth_failed`;
-      await account.createOAuth2Session("google", successUrl, failureUrl);
+
+      // Simplified approach for Firefox - use basic OAuth without extra scopes
+      if (isFirefox) {
+        console.log("🔐 Firefox detected - using simplified OAuth flow");
+
+        // For Firefox, use the simplest possible OAuth configuration
+        await account.createOAuth2Session("google", successUrl, failureUrl);
+
+        // Wait for session creation
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+      } else {
+        // Standard OAuth flow for other browsers
+        await account.createOAuth2Session("google", successUrl, failureUrl);
+      }
     } catch (error) {
       console.error("Google OAuth failed:", error);
+
+      // For Firefox, provide more generic error handling
+      const userAgent = window.navigator.userAgent;
+      if (userAgent.includes('Firefox')) {
+        console.log("🔐 Firefox login failed - checking error type");
+
+        // Only throw Firefox-specific error for actual session issues
+        if (error.message?.includes('missing scopes') || error.message?.includes('guests')) {
+          throw new Error("Firefox_session_blocked");
+        } else {
+          // For other Firefox errors, try a more generic approach
+          throw new Error("Firefox_login_failed");
+        }
+      }
+
       throw new Error("Google login failed. Please try again.");
     }
   },
 
   async handleOAuthCallback() {
-    try {
-      const user = await account.get();
-      debugLog("OAuth user received:", user);
-      if (!user || !user.$id) throw new Error("Authentication failed");
-      return user;
-    } catch (error) {
-      console.error("OAuth callback failed:", error);
-      throw new Error(`Authentication failed: ${error.message}`);
+    const maxRetries = 2; // Reduced retries for Firefox
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Shorter delay for Firefox
+        const delay = attempt === 1 ? 800 : 1200;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+
+        debugLog(`OAuth callback attempt ${attempt}/${maxRetries}`);
+
+        const user = await account.get();
+        debugLog("OAuth user received:", user);
+
+        if (!user || !user.$id) {
+          throw new Error("Authentication failed - no user data");
+        }
+
+        // For Firefox, be more lenient with session validation
+        const isFirefox = typeof window !== 'undefined' && window.navigator.userAgent.includes('Firefox');
+
+        if (isFirefox) {
+          // For Firefox, accept the session even with limited scopes
+          console.log("🔐 Firefox session detected - accepting with limited scopes");
+          if (user && user.$id) {
+            console.log("🔐 Firefox session accepted - proceeding despite limited scopes");
+            return user;
+          }
+        }
+
+        // Standard validation for other browsers
+        if (user.role === "guests" || !user.email) {
+          debugLog("Invalid session detected - redirecting to login");
+
+          if (isFirefox) {
+            // For Firefox, try to accept anyway if we have basic user data
+            if (user && user.$id && user.name) {
+              console.log("🔐 Firefox: Accepting session with limited data");
+              return user;
+            }
+            throw new Error("Firefox_session_blocked");
+          } else {
+            throw new Error("Session not properly created. Please try logging in again.");
+          }
+        }
+
+        debugLog("OAuth callback successful for user:", user.email);
+        return user;
+
+      } catch (error) {
+        console.error(`OAuth callback attempt ${attempt} failed:`, error);
+        lastError = error;
+
+        // For Firefox, handle errors more gracefully
+        const isFirefox = typeof window !== 'undefined' && window.navigator.userAgent.includes('Firefox');
+
+        if (isFirefox && (error.message?.includes("missing scopes") || error.code === 401)) {
+          // For Firefox, try to continue even with limited session data
+          try {
+            const user = await account.get();
+            if (user && user.$id) {
+              console.log("🔐 Firefox: Accepting limited session data");
+              return user;
+            }
+          } catch (fallbackError) {
+            console.log("🔐 Firefox fallback also failed");
+          }
+        }
+
+        // If this is the last attempt, throw the error
+        if (attempt === maxRetries) {
+          if (isFirefox) {
+            throw new Error("Firefox_session_blocked");
+          }
+          throw lastError;
+        }
+
+        // Wait before retry
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
     }
+
+    throw new Error(`Authentication failed: ${lastError.message}`);
   },
 
   getGoogleAvatar(authUser) {
@@ -63,6 +177,18 @@ export const authService = {
       debugLog("=== STARTING COMPLETE USER PROFILE ===");
       const authUser = await account.get();
       if (!authUser?.$id) throw new Error("User not authenticated");
+
+      // Handle missing scopes error - be more lenient for Firefox
+      const isFirefox = typeof window !== 'undefined' && window.navigator.userAgent.includes('Firefox');
+
+      if (authUser.role === "guests" || authUser.$id === undefined) {
+        if (isFirefox && authUser.$id) {
+          debugLog("Firefox session with limited scopes - proceeding");
+        } else {
+          debugLog("User session invalid, redirecting to login");
+          throw new Error("Session expired. Please login again.");
+        }
+      }
 
       let dbUserProfile = null;
 
@@ -109,6 +235,23 @@ export const authService = {
           return doc.userId === authUser.$id;
         });
       } catch {}
+
+      // Auto-assign to first available shop if user has no active assignments
+      if (
+        userShops.length === 0 ||
+        !userShops.some(
+          (us) =>
+            us.status === "active" &&
+            us.shopId &&
+            (Array.isArray(us.shopId) ? us.shopId.length > 0 : true)
+        )
+      ) {
+        try {
+          await this.autoAssignUserToShop(authUser.$id);
+        } catch (error) {
+          debugLog("Auto-assignment failed:", error.message);
+        }
+      }
 
       const completeProfile = {
         ...authUser,
@@ -215,7 +358,8 @@ export const authService = {
     try {
       return await account.get();
     } catch (error) {
-      if (error.code === 401) return null;
+      if (error.code === 401 || error.message?.includes("missing scopes"))
+        return null;
       throw error;
     }
   },
@@ -255,6 +399,49 @@ export const authService = {
     } catch (error) {
       if (error.code === 404) return false;
       throw error;
+    }
+  },
+
+  async autoAssignUserToShop(userId) {
+    try {
+      debugLog("Starting auto-assignment for user:", userId);
+
+      // Get all available shops
+      const shopsResponse = await databases.listDocuments(
+        DATABASE_ID,
+        SHOPS_COLLECTION_ID,
+        [Query.limit(100)]
+      );
+
+      if (shopsResponse.documents.length === 0) {
+        debugLog("No shops available for auto-assignment");
+        return null;
+      }
+
+      // Get first available shop
+      const firstShop = shopsResponse.documents[0];
+      debugLog("Auto-assigning to first shop:", firstShop.name);
+
+      // Create shop assignment with appropriate role
+      const assignmentData = {
+        userId: [userId],
+        shopId: [firstShop.$id],
+        role: "salesman", // Default role for new users
+        status: "active",
+      };
+
+      const assignment = await databases.createDocument(
+        DATABASE_ID,
+        USER_SHOPS_COLLECTION_ID,
+        ID.unique(),
+        assignmentData
+      );
+
+      debugLog("Auto-assignment successful:", assignment);
+      return assignment;
+    } catch (error) {
+      console.error("Error in auto-assignment:", error);
+      throw new Error(`Failed to auto-assign user to shop: ${error.message}`);
     }
   },
 };

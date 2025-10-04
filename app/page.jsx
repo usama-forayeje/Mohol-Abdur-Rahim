@@ -498,9 +498,18 @@ const features = [
 
 export default function TailoringLandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [hasRedirected, setHasRedirected] = useState(false);
   const { isAuthenticated, userProfile, user, canAccessDashboard, logout } =
     useAuthStore();
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+
+  // Redirect authenticated users to dashboard (one-time only)
+  useEffect(() => {
+    if (isAuthenticated && canAccessDashboard() && !hasRedirected) {
+      setHasRedirected(true);
+      window.location.href = "/dashboard";
+    }
+  }, [isAuthenticated, canAccessDashboard, hasRedirected]);
 
 
   const navigationItems = [

@@ -52,6 +52,7 @@ import {
   ChevronsDown,
   CreditCardIcon,
   LogOutIcon,
+  Shirt,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -76,6 +77,13 @@ export default function AppSidebar() {
         url: "/dashboard",
         roles: ["superAdmin", "admin", "manager", "tailor", "salesman", "embroideryMan", "stoneMan"],
         permission: null, // No specific permission needed for dashboard
+      },
+      {
+        title: "ক্যাটালগ",
+        icon: Star,
+        url: "/dashboard/catalog",
+        roles: ["superAdmin", "admin", "manager", "tailor", "salesman", "embroideryMan", "stoneMan"],
+        permission: null,
       },
     ]
 
@@ -166,13 +174,6 @@ export default function AppSidebar() {
             permission: "MANAGE_FABRICS",
           },
         ],
-      },
-      {
-        title: "ক্যাটালগ",
-        icon: Star,
-        url: "/dashboard/catalog",
-        roles: ["superAdmin", "admin", "manager", "tailor", "salesman", "embroideryMan", "stoneMan"],
-        permission: null,
       },
       {
         title: "আর্থিক ব্যবস্থাপনা",
@@ -330,9 +331,17 @@ export default function AppSidebar() {
       {
         title: "সিস্টেম সেটিংস",
         icon: Settings,
-        url: "/dashboard/settings",
         roles: ["superAdmin"],
         permission: "MANAGE_SHOPS",
+        items: [
+          {
+            title: "টেইলারিং আইটেমসমূহ",
+            icon: Shirt,
+            url: "/dashboard/settings/tailoring-items",
+            roles: ["superAdmin", "admin", "manager", "tailor"],
+            permission: null,
+          },
+        ],
       },
     ]
 

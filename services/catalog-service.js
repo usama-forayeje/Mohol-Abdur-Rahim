@@ -10,12 +10,20 @@ const STORAGE_ID = process.env.NEXT_PUBLIC_APPWRITE_STORAGE_ID;
 
 export const catalogService = {
   // Get all catalog items
-  async getCatalogItems() {
+  async getCatalogItems(shopId = null) {
     try {
+      let queries = [Query.orderDesc("$createdAt"), Query.limit(100)];
+
+      // If shopId is provided, filter by shop
+      if (shopId) {
+        queries.push(Query.contains("shopIds", shopId));
+      }
+      // If no shopId provided, get all items (for staff users)
+
       const response = await databases.listDocuments(
         DATABASE_ID,
         COLLECTION_ID,
-        [Query.orderDesc("$createdAt"), Query.limit(100)]
+        queries
       );
       return response.documents;
     } catch (error) {
@@ -242,11 +250,11 @@ export const catalogService = {
 };
 
 // Fetch catalog items
-export function useCatalogItems() {
+export function useCatalogItems(shopId = null) {
   return useQuery({
-    queryKey: ["catalog"],
+    queryKey: ["catalog", shopId],
     queryFn: async () => {
-      const data = await catalogService.getCatalogItems();
+      const data = await catalogService.getCatalogItems(shopId);
       useCatalogStore.getState().setCatalogItems(data);
       return data;
     },

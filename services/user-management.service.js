@@ -1,5 +1,7 @@
 // services/user-management.service.js
 import { databases, Query, ID } from "@/appwrite/appwrite";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
 const USERS_COLLECTION_ID = process.env.NEXT_PUBLIC_APPWRITE_USERS_COLLECTION_ID;
@@ -245,6 +247,49 @@ export const userManagementService = {
     return roleHierarchy[currentUserRole] || [];
   },
 
+  // Delete user completely
+  async deleteUser(userId, currentUserRole) {
+    try {
+      // Only superAdmin and admin can delete users
+      if (!['superAdmin', 'admin'].includes(currentUserRole)) {
+        throw new Error("শুধুমাত্র Super Admin এবং Admin ইউজার delete করতে পারবে");
+      }
+
+      // Get all user shop assignments
+      const userShopsResponse = await databases.listDocuments(
+        DATABASE_ID,
+        USER_SHOPS_COLLECTION_ID,
+        [Query.limit(100)]
+      );
+
+      const userAssignments = userShopsResponse.documents.filter(assignment => {
+        if (Array.isArray(assignment.userId)) {
+          return assignment.userId.some(u => u.$id === userId || u === userId);
+        }
+        return assignment.userId?.$id === userId || assignment.userId === userId;
+      });
+
+      // Remove user from all shops first
+      if (userAssignments.length > 0) {
+        const removePromises = userAssignments.map(assignment =>
+          databases.updateDocument(
+            DATABASE_ID,
+            USER_SHOPS_COLLECTION_ID,
+            assignment.$id,
+            { status: 'inactive' }
+          )
+        );
+        await Promise.all(removePromises);
+      }
+
+      // Finally delete the user
+      return await databases.deleteDocument(DATABASE_ID, USERS_COLLECTION_ID, userId);
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      throw error;
+    }
+  },
+
   // Get pending users (no shop assigned)
   async getPendingUsers() {
     try {
@@ -263,13 +308,13 @@ export const userManagementService = {
       // Find users with no active shop assignments
       const pendingUsers = allUsers.documents.filter(user => {
         const hasActiveAssignment = userShops.documents.some(assignment => {
-          const userMatch = Array.isArray(assignment.userId) 
+          const userMatch = Array.isArray(assignment.userId)
             ? assignment.userId.some(u => u.$id === user.$id || u === user.$id)
             : assignment.userId?.$id === user.$id || assignment.userId === user.$id;
-          
-          const hasShop = assignment.shopId && 
+
+          const hasShop = assignment.shopId &&
             (Array.isArray(assignment.shopId) ? assignment.shopId.length > 0 : true);
-            
+
           return userMatch && hasShop && assignment.status === 'active';
         });
 
@@ -304,5 +349,22 @@ export const userManagementService = {
       console.error("Error in bulk assignment:", error);
       throw error;
     }
+  },
+
+  // Delete user mutation hook
+  useDeleteUser() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+      mutationFn: ({ userId, currentUserRole }) =>
+        userManagementService.deleteUser(userId, currentUserRole),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["users"] });
+        toast.success("ইউজার সফলভাবে delete করা হয়েছে");
+      },
+      onError: (error) => {
+        toast.error(error.message || "ইউজার delete করতে ব্যর্থ");
+      },
+    });
   }
 };
