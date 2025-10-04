@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
     Dialog,
     DialogContent,
@@ -51,6 +52,7 @@ import { MultiSelect } from "@/components/multi-select";
 import { useCatalogStore } from "@/store/catalogStore";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth-store";
+import { useRouter } from "next/navigation";
 import { getOptimizedImageUrl } from "@/lib/image-optimizer";
 import { VirtualTable } from "@/components/ui/virtual-table";
 import { roleHelpers } from "@/lib/roles";
@@ -88,7 +90,12 @@ export default function CatalogPage() {
     const [imagePreviews, setImagePreviews] = useState([]);
     const [existingImageUrls, setExistingImageUrls] = useState([]);
     const [imagePreviewModal, setImagePreviewModal] = useState(null);
-    const { user } = useAuthStore();
+    const { user, userProfile } = useAuthStore();
+    const { selectedShopId } = useAuthStore();
+    const router = useRouter();
+
+    // Get user role from profile
+    const userRole = userProfile?.role || "staff";
 
     const { control, register, handleSubmit, reset, setValue, watch } = useForm({
         resolver: zodResolver(catalogSchema),
@@ -104,7 +111,7 @@ export default function CatalogPage() {
         },
     });
 
-    const { isLoading } = useCatalogItems();
+    const { isLoading } = useCatalogItems(selectedShopId || undefined);
     const catalogItems = useCatalogStore((state) => state.catalogItems);
     const getFilteredCatalogItems = useCatalogStore((state) => state.getFilteredCatalogItems);
     const { data: shops, isLoading: shopsLoading } = useShops();
@@ -247,6 +254,38 @@ export default function CatalogPage() {
         return emojiMatch ? emojiMatch[0] : "📦";
     };
 
+    // Show shop selection prompt only for admin/manager/superAdmin who need to create catalog items
+    // Staff users can view catalog without shop selection
+    if (!selectedShopId && !isLoading && ["admin", "superAdmin", "manager"].includes(userRole)) {
+        return (
+            <PageContainer>
+                <div className="min-h-screen flex items-center justify-center p-6">
+                    <Card className="max-w-md w-full">
+                        <CardContent className="p-6">
+                            <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/50">
+                                <Store className="h-5 w-5 text-blue-600" />
+                                <AlertDescription className="text-blue-800 dark:text-blue-200">
+                                    <div className="space-y-3">
+                                        <p className="font-semibold">দোকান নির্বাচন করুন</p>
+                                        <p className="text-sm">ক্যাটালগ manage করার জন্য প্রথমে একটি দোকান নির্বাচন করুন</p>
+                                        <Button
+                                            onClick={() => router.push("/dashboard/shop")}
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full"
+                                        >
+                                            দোকান নির্বাচন করুন
+                                        </Button>
+                                    </div>
+                                </AlertDescription>
+                            </Alert>
+                        </CardContent>
+                    </Card>
+                </div>
+            </PageContainer>
+        );
+    }
+
     return (
         <PageContainer>
             <div className="space-y-3 sm:space-y-4 w-full max-w-full overflow-hidden px-1 sm:px-0">
@@ -267,6 +306,12 @@ export default function CatalogPage() {
                                     <Badge variant="outline" className="text-xs">
                                         📊 {catalogItems.length} আইটেম
                                     </Badge>
+                                    <Badge
+                                        variant={["admin", "superAdmin", "manager"].includes(userRole) ? "default" : "secondary"}
+                                        className="text-xs"
+                                    >
+                                        {["admin", "superAdmin", "manager"].includes(userRole) ? "✏️ সম্পাদনা করতে পারে" : "👁️ ক্যাটালগ দেখতে পারে"}
+                                    </Badge>
                                 </div>
                             </div>
                         </div>
@@ -286,15 +331,21 @@ export default function CatalogPage() {
                                 </div>
                             </div>
 
-                            {/* Add Button */}
-                            <Button
-                                onClick={openForm}
-                                className="w-full sm:w-auto flex items-center justify-center gap-1 text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3"
-                            >
-                                <Plus className="h-3 w-3 flex-shrink-0" />
-                                <span className="hidden xs:inline">যোগ করুন</span>
-                                <span className="xs:hidden">যোগ</span>
-                            </Button>
+                            {/* Add Button - Only for privileged roles */}
+                            {["admin", "superAdmin", "manager"].includes(userRole) ? (
+                                <Button
+                                    onClick={openForm}
+                                    className="w-full sm:w-auto flex items-center justify-center gap-1 text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3"
+                                >
+                                    <Plus className="h-3 w-3 flex-shrink-0" />
+                                    <span className="hidden xs:inline">যোগ করুন</span>
+                                    <span className="xs:hidden">যোগ</span>
+                                </Button>
+                            ) : (
+                                <div className="w-full sm:w-auto flex items-center justify-center px-2 py-1 text-xs text-green-700 bg-green-50 border border-green-200 rounded">
+                                    ✅ ক্যাটালগ দেখুন
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -361,6 +412,7 @@ export default function CatalogPage() {
                                     onDelete={(item) => deleteCatalogItem.mutate(item)}
                                     onImagePreview={openImagePreview}
                                     isLoading={isLoading}
+                                    userRole={userRole}
                                 />
                             </div>
                         )}

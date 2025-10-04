@@ -27,6 +27,7 @@ export function VirtualTable({
     onImagePreview,
     isLoading = false,
     className = "",
+    userRole = "staff",
 }) {
     const [sorting, setSorting] = useState([]);
     const [globalFilter, setGlobalFilter] = useState("");
@@ -248,31 +249,47 @@ export function VirtualTable({
                     <span className="truncate">ক্রিয়া</span>
                 </div>
             ),
-            cell: ({ row }) => (
-                <div className="flex gap-1 min-w-0">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onEdit && onEdit(row.original)}
-                        className="h-6 w-6 p-0 flex-shrink-0"
-                    >
-                        <Edit2 className="h-3 w-3" />
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onDelete && onDelete(row.original)}
-                        className="h-6 w-6 p-0 flex-shrink-0"
-                    >
-                        <Trash2 className="h-3 w-3" />
-                    </Button>
-                </div>
-            ),
+            cell: ({ row }) => {
+                // Check if user can modify (admin, superAdmin, manager)
+                const canModify = ["admin", "superAdmin", "manager"].includes(userRole);
+
+                return (
+                    <div className="flex gap-1 min-w-0">
+                        {canModify && (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => onEdit && onEdit(row.original)}
+                                    className="h-6 w-6 p-0 flex-shrink-0 border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:hover:bg-blue-950/30"
+                                    title="সম্পাদনা করুন"
+                                >
+                                    <Edit2 className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => onDelete && onDelete(row.original)}
+                                    className="h-6 w-6 p-0 flex-shrink-0 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/30"
+                                    title="মুছে ফেলুন"
+                                >
+                                    <Trash2 className="h-3 w-3 text-red-600 dark:text-red-400" />
+                                </Button>
+                            </>
+                        )}
+                        {!canModify && (
+                            <span className="text-xs text-muted-foreground px-2 py-1">
+                                শুধুমাত্র দেখুন
+                            </span>
+                        )}
+                    </div>
+                );
+            },
             size: 80,
             minSize: 60,
             maxSize: 90,
         }),
-    ], [shops, onEdit, onDelete, onImagePreview]);
+    ], [shops, onEdit, onDelete, onImagePreview, userRole]);
 
     // Filter data based on global filter
     const filteredData = useMemo(() => {

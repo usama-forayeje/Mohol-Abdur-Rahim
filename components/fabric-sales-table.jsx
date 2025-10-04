@@ -147,16 +147,15 @@ export function FabricSalesTable({
   const summaryStats = useMemo(() => {
     const totalSales = filteredData.length
     const totalPaymentAmount = filteredData.reduce((sum, sale) => sum + (Number(sale.payment_amount) || 0), 0)
-    const totalQuantityInMeters = filteredData.reduce((sum, sale) => {
+    const totalQuantity = filteredData.reduce((sum, sale) => {
       const items = Array.isArray(sale.items) ? sale.items : []
       return sum + items.reduce((itemSum, item) => itemSum + (Number(item.quantity) || 0), 0)
     }, 0)
-    const totalQuantityInYards = totalQuantityInMeters * 1.09361 // Convert meters to yards
 
     return {
       totalSales,
       totalPaymentAmount,
-      totalQuantityInYards: Math.round(totalQuantityInYards * 100) / 100, // Round to 2 decimal places
+      totalQuantityInYards: Math.round(totalQuantity * 100) / 100, // Round to 2 decimal places
     }
   }, [filteredData])
 

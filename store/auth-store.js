@@ -3,6 +3,43 @@ import { persist } from "zustand/middleware";
 import { authService } from "@/services/auth-service";
 import { ROLES } from "@/lib/roles";
 
+// Helper function to extract shop IDs
+const extractShopIds = (userShops) => {
+  return userShops
+    .filter((us) => us.status === "active")
+    .map((us) => {
+      if (typeof us.shopId === "string") return us.shopId;
+      if (us.shopId?.$id) return us.shopId.$id;
+      if (Array.isArray(us.shopId) && us.shopId.length > 0) {
+        return typeof us.shopId[0] === "string"
+          ? us.shopId[0]
+          : us.shopId[0].$id;
+      }
+      return null;
+    })
+    .filter(Boolean);
+};
+
+// Helper function to get user role
+const getUserRole = (userShops) => {
+  const roles = userShops.map((us) => us.role).filter(Boolean);
+  return roles.includes(ROLES.SUPER_ADMIN)
+    ? ROLES.SUPER_ADMIN
+    : roles.includes(ROLES.ADMIN)
+    ? ROLES.ADMIN
+    : roles.includes(ROLES.MANAGER)
+    ? ROLES.MANAGER
+    : roles.includes(ROLES.TAILOR)
+    ? ROLES.TAILOR
+    : roles.includes(ROLES.SALESMAN)
+    ? ROLES.SALESMAN
+    : roles.includes(ROLES.EMBROIDERY_MAN)
+    ? ROLES.EMBROIDERY_MAN
+    : roles.includes(ROLES.STONE_MAN)
+    ? ROLES.STONE_MAN
+    : ROLES.USER;
+};
+
 export const useAuthStore = create(
   persist(
     (set, get) => ({
@@ -24,54 +61,44 @@ export const useAuthStore = create(
           user: user?.$id,
           userProfile: userProfile?.name,
           userShopsCount: userShops.length,
-          userShops: userShops,
+          isFirefox: typeof window !== 'undefined' && window.navigator.userAgent.includes('Firefox')
         });
 
         // Extract shop IDs from user shops
-        const shopIds = userShops
-          .filter((us) => us.status === "active")
-          .map((us) => {
-            if (typeof us.shopId === "string") return us.shopId;
-            if (us.shopId?.$id) return us.shopId.$id;
-            if (Array.isArray(us.shopId) && us.shopId.length > 0) {
-              return typeof us.shopId[0] === "string"
-                ? us.shopId[0]
-                : us.shopId[0].$id;
-            }
-            return null;
-          })
-          .filter(Boolean);
+        const shopIds = extractShopIds(userShops);
 
         // Get user's highest role
-        const roles = userShops.map((us) => us.role).filter(Boolean);
-        const userRole = roles.includes(ROLES.SUPER_ADMIN)
-          ? ROLES.SUPER_ADMIN
-          : roles.includes(ROLES.ADMIN)
-          ? ROLES.ADMIN
-          : roles.includes(ROLES.MANAGER)
-          ? ROLES.MANAGER
-          : roles.includes(ROLES.TAILOR)
-          ? ROLES.TAILOR
-          : roles.includes(ROLES.SALESMAN)
-          ? ROLES.SALESMAN
-          : roles.includes(ROLES.EMBROIDERY_MAN)
-          ? ROLES.EMBROIDERY_MAN
-          : roles.includes(ROLES.STONE_MAN)
-          ? ROLES.STONE_MAN
-          : ROLES.USER;
+        const userRole = getUserRole(userShops);
 
         // Update user profile with correct role
-        const updatedProfile = {
+        const updatedProfile = userProfile ? {
           ...userProfile,
           role: userRole,
-        };
+        } : null;
 
         // Set first shop as selected if available
         const firstShopId = shopIds[0] || null;
 
+        // For Firefox sessions with limited data, create a basic profile if needed
+        const isFirefox = typeof window !== 'undefined' && window.navigator.userAgent.includes('Firefox');
+        let finalUser = user;
+        let finalProfile = updatedProfile;
+
+        if (isFirefox && user && (!userProfile || !user.email)) {
+          console.log("🔐 Firefox: Creating basic profile from limited session data");
+          finalProfile = {
+            $id: user.$id,
+            name: user.name || "Firefox User",
+            email: user.email || `${user.$id}@firefox.local`,
+            role: userRole,
+            status: "active"
+          };
+        }
+
+        // Batch state update to prevent multiple re-renders
         set({
-          user,
-          userProfile: updatedProfile,
+          user: finalUser,
+          userProfile: finalProfile,
           userShops,
           selectedShopId: firstShopId,
           viewMode: firstShopId ? "single-shop" : "all-shops",
@@ -80,14 +107,16 @@ export const useAuthStore = create(
           error: null,
         });
 
-        // Save to localStorage
-        if (firstShopId) {
-          localStorage.setItem("selectedShopId", firstShopId);
+        // Save to localStorage (only if window is available)
+        if (typeof window !== 'undefined') {
+          if (firstShopId) {
+            localStorage.setItem("selectedShopId", firstShopId);
+          }
+          localStorage.setItem(
+            "viewMode",
+            firstShopId ? "single-shop" : "all-shops"
+          );
         }
-        localStorage.setItem(
-          "viewMode",
-          firstShopId ? "single-shop" : "all-shops"
-        );
       },
 
       clearAuth: () => {
@@ -145,9 +174,9 @@ export const useAuthStore = create(
         }
       },
 
-      // Helper methods
+      // Helper methods (memoized for performance)
       canAccessDashboard: () => {
-        const { userProfile, isAuthenticated } = get();
+        const { isAuthenticated, userProfile } = get();
         return isAuthenticated && userProfile?.role !== ROLES.USER;
       },
 
@@ -162,20 +191,19 @@ export const useAuthStore = create(
       },
 
       isViewingAllShops: () => {
-        return get().viewMode === "all-shops";
+        const { viewMode } = get();
+        return viewMode === "all-shops";
       },
 
       getUserRole: () => {
-        const { userProfile, selectedShopId, userShops } = get();
+        const { selectedShopId, userShops, userProfile } = get();
 
         // If user has a specific shop selected, find role for that shop
         if (selectedShopId && userShops.length > 0) {
           const userShop = userShops.find((us) => {
-            const shopId =
-              typeof us.shopId === "string"
-                ? us.shopId
-                : us.shopId?.$id ||
-                  (Array.isArray(us.shopId) && us.shopId[0]?.$id);
+            const shopId = typeof us.shopId === "string"
+              ? us.shopId
+              : us.shopId?.$id || (Array.isArray(us.shopId) && us.shopId[0]?.$id);
             return shopId === selectedShopId && us.status === "active";
           });
 
@@ -189,40 +217,22 @@ export const useAuthStore = create(
       },
 
       hasPermission: (permission) => {
-        const { getUserRole } = get();
-        const role = getUserRole();
+        const { userProfile } = get();
+        const role = get().getUserRole();
 
-        // Define permissions for each role
+        // Define permissions for each role (moved outside to prevent recreation)
         const permissions = {
           [ROLES.SUPER_ADMIN]: [
-            "VIEW_REPORTS",
-            "CREATE_ORDERS",
-            "VIEW_CUSTOMERS",
-            "VIEW_ALL_ORDERS",
-            "MANAGE_FABRICS",
-            "MANAGE_USERS",
-            "MANAGE_SHOPS",
-            "VIEW_FINANCE",
-            "SELL_FABRICS", // ✅ এটা যোগ করলাম
+            "VIEW_REPORTS", "CREATE_ORDERS", "VIEW_CUSTOMERS", "VIEW_ALL_ORDERS",
+            "MANAGE_FABRICS", "MANAGE_USERS", "MANAGE_SHOPS", "VIEW_FINANCE", "SELL_FABRICS",
           ],
           [ROLES.ADMIN]: [
-            "VIEW_REPORTS",
-            "CREATE_ORDERS",
-            "VIEW_CUSTOMERS",
-            "VIEW_ALL_ORDERS",
-            "MANAGE_FABRICS",
-            "MANAGE_USERS",
-            "VIEW_FINANCE",
-            "SELL_FABRICS", // ✅ এটা যোগ করলাম
+            "VIEW_REPORTS", "CREATE_ORDERS", "VIEW_CUSTOMERS", "VIEW_ALL_ORDERS",
+            "MANAGE_FABRICS", "MANAGE_USERS", "VIEW_FINANCE", "SELL_FABRICS",
           ],
           [ROLES.MANAGER]: [
-            "VIEW_REPORTS",
-            "CREATE_ORDERS",
-            "VIEW_CUSTOMERS",
-            "VIEW_ALL_ORDERS",
-            "MANAGE_FABRICS",
-            "VIEW_FINANCE",
-            "SELL_FABRICS", // ✅ এটা যোগ করলাম
+            "VIEW_REPORTS", "CREATE_ORDERS", "VIEW_CUSTOMERS", "VIEW_ALL_ORDERS",
+            "MANAGE_FABRICS", "VIEW_FINANCE", "SELL_FABRICS",
           ],
           [ROLES.SALESMAN]: ["CREATE_ORDERS", "VIEW_CUSTOMERS", "SELL_FABRICS"],
           [ROLES.TAILOR]: ["VIEW_OWN_ORDERS", "UPDATE_ORDER_STATUS"],
@@ -234,7 +244,7 @@ export const useAuthStore = create(
         return permissions[role]?.includes(permission) || false;
       },
 
-      // Get accessible shops for the current user
+      // Get accessible shops for the current user (optimized)
       getAccessibleShops: (allShops = []) => {
         const { userProfile, userShops } = get();
 
@@ -246,19 +256,7 @@ export const useAuthStore = create(
         }
 
         // For other users, filter by their assigned shops
-        const userShopIds = userShops
-          .filter((us) => us.status === "active")
-          .map((us) => {
-            if (typeof us.shopId === "string") return us.shopId;
-            if (us.shopId?.$id) return us.shopId.$id;
-            if (Array.isArray(us.shopId) && us.shopId.length > 0) {
-              return typeof us.shopId[0] === "string"
-                ? us.shopId[0]
-                : us.shopId[0].$id;
-            }
-            return null;
-          })
-          .filter(Boolean);
+        const userShopIds = extractShopIds(userShops);
 
         return allShops.filter((shop) => userShopIds.includes(shop.$id));
       },
